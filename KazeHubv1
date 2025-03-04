@@ -34,17 +34,19 @@ local Window = Rayfield:CreateWindow({
             }
 })
 
----[TABS]---
+---[TABS]--- 
 local Tab1 = Window:CreateTab("Maintab", 4483362458) 
 local Tab2 = Window:CreateTab("Teleport", 4483362458) 
-local Tab3 = Window:CreateTab("ThemeIdentifier", 4483362458)
+local Tab3 = Window:CreateTab("Misc", 4483362458)
 
 ---[SECTIONS]---
-local Section = Tab1:CreateSection("Main stuff")
+local Section =
+Tab1:CreateSection("Main stuff")
 local Section = Tab2:CreateSection("Teleport stuff") 
 local Section = Tab3:CreateSection("Theme stuff")
 
 ---[BUTONS]---
+
 local Button2 = Tab2:CreateButton({
    Name = "Ishikage",
    Callback = function()
@@ -59,43 +61,14 @@ local Button2 = Tab2:CreateButton({
    end,
 })
 
-local Button3 = Tab2:CreateButton({
-        Name = "Aruka",
-        Callback = function()
-            local player = game.Players.LocalPlayer
-            local character = player.Character
-            if character then
-                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                if humanoidRootPart then
-                    humanoidRootPart.CFrame = CFrame.new(1134.74194, 10.2914276, -1204.85547, -0.00116586685, -0.0604533665, 0.998170316, 0.0194441117, 0.997980952, 0.0604646057, -0.999810278, 0.0194790289, 1.19805336e-05)
-                end
-            end
-        end,
- })
-
-local Button4 = Tab2:CreateButton({
-        Name = "Hayake (quest chunin)",
-        Callback = function()
-            local player = game.Players.LocalPlayer
-            local character = player.Character
-            if character then
-                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                if humanoidRootPart then
-                    humanoidRootPart.CFrame = CFrame.new(-2237.86011, -653.359009, 4561.11621, -1, 0, 0, 0, 1, 0, 0, 0, -1)
-                end
-            end
-        end,
-})
-
 ---[SLIDERS]---
 local Slider = Tab1:CreateSlider({
     Name = "Walkspeed",
-    Range = {12, 200},
+    Range = {12, 300},
     Increment = 1,
     Suffix = "Speed",
     CurrentValue = 12,
     Flag = "",
-    Visible = false, -- Hide slider initially
     Callback = function(value)
         local humanoid = game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if humanoid then
@@ -115,7 +88,7 @@ local ThemeSelector = Tab3:CreateDropdown({
     Flag = "",
     Callback = function(Options)
         Window.ModifyTheme(Options[1])
-            
+
     end,
 })
 
