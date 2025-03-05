@@ -37,8 +37,8 @@ local Window = Rayfield:CreateWindow({
 ---[TABS]--- 
 local Tab1 = Window:CreateTab("Maintab", 4483362458) 
 local Tab2 = Window:CreateTab("Teleport", 4483362458) 
-local Tab3 = Window:CreateTab("Misc", 4483362458)
-
+local Tab3 = Window:CreateTab("TP2", 4483362458)
+local Tab4 = Window:CreateTab("Misc", 4483362458)
 ---[SECTIONS]---
 local Section =
 Tab1:CreateSection("Main stuff")
@@ -60,6 +60,242 @@ local Button2 = Tab2:CreateButton({
             end
    end,
 })
+local Button2 = Tab2:CreateButton({
+    Name = "Aruka",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(1134.74194, 10.2914276, -1204.85547, -0.00116586685, -0.0604533665, 0.998170316, 0.0194441117, 0.997980952, 0.0604646057, -0.999810278, 0.0194790289, 1.19805336e-05)
+                 end
+             end
+    end,
+ })
+local Button2 = Tab2:CreateButton({
+    Name = "Hayake",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(-2237.86011, -653.359009, 4561.11621, -1, 0, 0, 0, 1, 0, 0, 0, -1)
+                 end
+             end
+    end,
+ })
+local Button2 = Tab2:CreateButton({
+    Name = "Tazune",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(-5626.2124, 11.2999983, 5244.42676, -0.00791931152, 0, -0.999968588, 0, 1, 0, 0.999968588, 0, -0.00791931152)
+                 end
+             end
+    end,
+ })
+local Button2 = Tab2:CreateButton({
+    Name = "Raikou",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(-1347.4519, 9.71719646, -45.5947533, -1, 0, -0.000345288077, 0, 1, 0, 0.000345288077, 0, -1)
+                 end
+             end
+    end,
+ })
+local Button2 = Tab2:CreateButton({
+    Name = "Chiraku",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(221.659149, 45.6981621, -158.61438, 0, 0, 1, 0, 1, -0, -1, 0, 0)
+                 end
+             end
+    end,
+ })
+local Button2 = Tab2:CreateButton({
+    Name = "Black Smith",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(699.088928, 45.2500038, -658.194031, 0.0175017118, 0, 0.999846935, 0, 1, 0, -0.999846935, 0, 0.0175017118)
+                 end
+             end
+    end,
+ })
+localButton2 = Tab2:CreateButton({
+    Name = "Hight Muty",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(1022.98584, 8.39374828, -1206.55615, 0.703555822, -0, -0.710639954, 0, 1, -0, 0.710639954, 0, 0.703555822)
+                 end
+             end
+    end,
+ })
+localButton2 = Tab2:CreateButton({
+    Name = "Power",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(1022.98584, 8.39374828, -1206.55615, 0.703555822, -0, -0.710639954, 0, 1, -0, 0.710639954, 0, 0.703555822)
+                 end
+             end
+    end,
+ })
+localButton2 = Tab2:CreateButton({
+    Name = "Stoneleo (npc)",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(994.840454, 10.0173273, -1292.09961, 0.54622668, 0.00131599489, 0.837636352, 0.00526277721, 0.999973655, -0.00500292191, -0.837620854, 0.00714102248, 0.546205401)
+                 end
+             end
+    end,
+ })
+localButton2 = Tab2:CreateButton({
+    Name = "Kenma",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(1385.91528, 15.4033747, -1485.42029, 0.297342062, 0, 0.954770982, 0, 1, 0, -0.954770982, 0, 0.297342062)
+                 end
+             end
+    end,
+ })
+localButton2 = Tab3:CreateButton({
+    Name = "God",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(1136.31348, 176.487488, -2252.47461, -1, 0, 0, 0, 1, 0, 0, 0, -1)
+                 end
+             end
+    end,
+ })
+ localButton2 = Tab3:CreateButton({
+    Name = "Redeyes (itachi)",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(-136.485779, -537.786682, -2885.04053, 0.999945462, 0.0104448209, 0, -0.0104448209, 0.999945462, -0, -0, 0, 1)
+                 end
+             end
+    end,
+ })
+ localButton2 = Tab3:CreateButton({
+    Name = "Nero",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(890.240601, 154.927017, -3877.58911, -1, 0, 0, 0, 1, 0, 0, 0, -1)
+                 end
+             end
+    end,
+ })
+ localButton2 = Tab3:CreateButton({
+    Name = "Izuko",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(262.677887, 188.487488, -2760.28271, 0.998261988, -0, -0.058932323, 0, 1, -0, 0.058932323, 0, 0.998261988)
+                 end
+             end
+    end,
+ })
+ localButton2 = Tab3:CreateButton({
+    Name = "Nero",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new()
+                 end
+             end
+    end,
+ })
+ localButton2 = Tab3:CreateButton({
+    Name = "Nero",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new(-4709.31494, 9.95102215, 1601.71179, 0, 0, -1, 0, 1, 0, 1, 0, 0)
+                 end
+             end
+    end,
+ })
+ localButton2 = Tab3:CreateButton({
+    Name = "Nero",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new()
+                 end
+             end
+    end,
+ })
+localButton2 = Tab3:CreateButton({
+    Name = "Nero",
+    Callback = function()
+             local player = game.Players.LocalPlayer
+             local character = player.Character
+             if character then
+                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                 if humanoidRootPart then
+                     humanoidRootPart.CFrame = CFrame.new()
+                 end
+             end
+    end,
+ })
+
+
 
 ---[SLIDERS]---
 local Slider = Tab1:CreateSlider({
@@ -80,7 +316,7 @@ local Slider = Tab1:CreateSlider({
 ---[DROPDOWNS]---
 local ThemesList = {"AmberGlow", "Amethyst", "Bloom", "DarkBlue", "Green", "Light", "Ocean", "Serenity"}
 
-local ThemeSelector = Tab3:CreateDropdown({
+local ThemeSelector = Tab4:CreateDropdown({
     Name = "UI Theme",
     Options = ThemesList,
     CurrentOption = {"Default"},
