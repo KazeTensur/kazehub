@@ -250,7 +250,7 @@ localButton2 = Tab3:CreateButton({
              if character then
                  local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
                  if humanoidRootPart then
-                     humanoidRootPart.CFrame = CFrame.new(5315.18604, 212.550888, -266.386841, 0.910690844, 0, 0.41308859, 0, 1, 0, -0.41308859, 0, 0.910690844)
+                     humanoidRootPart.CFrame = CFrame.new(4248.01172, 872.468018, -2452.69922, -0.056434989, 0, 0.998406291, 0, 1, 0, -0.998406291, 0, -0.056434989)
                  end
              end
     end,
