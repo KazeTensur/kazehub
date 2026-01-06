@@ -1,4 +1,4 @@
--- ================= KAZEHUB COMPLETE VERSION =================
+-- ================= KAZEHUB COMPLETE + WEBHOOK FIXED =================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -136,23 +136,12 @@ Main:CreateToggle({
     end
 })
 
--- =====================================================
--- TOWER DEFENSE RESULT + DISCORD WEBHOOK (ALL IN ONE)
--- =====================================================
-
--- ================= CONFIG =================
+-- ================= TOWER DEFENSE RESULT + DISCORD WEBHOOK (UPGRADED) =================
 local http_request =
     (syn and syn.request)
     or (http and http.request)
     or (fluxus and fluxus.request)
     or request
-
-local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
-local lp = Players.LocalPlayer
-
--- ================= WEBHOOK STATE =================
-local customWebhook = ""
 
 -- Load saved webhook from file
 pcall(function()
@@ -162,27 +151,20 @@ pcall(function()
     end
 end)
 
--- ================= UI PATH (GAME) =================
+-- UI PATH
 local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
 local content = resultUI:WaitForChild("Base"):WaitForChild("Content")
-
 local resultLabel  = content:WaitForChild("Result")
 local rewardFolder = content:WaitForChild("Rewards")
 local stageLabel   = content:WaitForChild("Stage")
 
--- ================= DATA =================
+-- DATA FUNCTIONS
 local function getTotalBalance()
     local data = lp:FindFirstChild("Data")
     if not data then return "Data not found" end
-
     local coins = data:FindFirstChild("Coins")
     local gems  = data:FindFirstChild("Gems")
-
-    return string.format(
-        "💰 **Coins:** %s\n💎 **Gems:** %s",
-        coins and coins.Value or 0,
-        gems and gems.Value or 0
-    )
+    return string.format("💰 **Coins:** %s\n💎 **Gems:** %s", coins and coins.Value or 0, gems and gems.Value or 0)
 end
 
 local function getMatchRewards()
@@ -196,26 +178,27 @@ local function getMatchRewards()
     return #rewards > 0 and table.concat(rewards, "\n") or "No rewards found"
 end
 
--- ================= SEND DISCORD =================
-local function sendDiscord()
+-- SEND DISCORD SAFE + RETRY
+local sent = false
+local maxRetry = 3
+
+local function sendDiscordSafe()
     if customWebhook == "" then
         warn("⚠️ No webhook entered, cannot send results")
         return
     end
 
-    task.wait(3.5)
-
+    repeat task.wait(0.1) until resultLabel.Text ~= "" and stageLabel.Text ~= ""
     local resultText = resultLabel.Text
-    local isWin = resultText:lower():find("win") or resultText:lower():find("victory")
+    local textLower = resultText:lower()
+    local isWin = textLower:find("win") or textLower:find("victory") or textLower:find("victorious")
 
     local data = {
         username = "Tower Defense Report",
         embeds = {{
             title = (isWin and "🏆 VICTORY" or "💀 DEFEAT") .. " | MATCH RESULT",
             color = isWin and 0x2ecc71 or 0xe74c3c,
-            description =
-                "👤 **Player:** `" .. lp.Name .. "`\n" ..
-                "🗺 **Stage:** `" .. stageLabel.Text .. "`",
+            description = "👤 **Player:** `" .. lp.Name .. "`\n" .. "🗺 **Stage:** `" .. stageLabel.Text .. "`",
             fields = {
                 { name = "🎁 MATCH REWARDS", value = getMatchRewards(), inline = false },
                 { name = "💰 TOTAL BALANCE", value = getTotalBalance(), inline = false },
@@ -225,24 +208,35 @@ local function sendDiscord()
         }}
     }
 
-    pcall(function()
-        http_request({
-            Url = customWebhook,
-            Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = HttpService:JSONEncode(data)
-        })
-    end)
-
-    print("✅ Webhook result sent")
+    local success = false
+    for i = 1, maxRetry do
+        local ok, err = pcall(function()
+            http_request({
+                Url = customWebhook,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = HttpService:JSONEncode(data)
+            })
+        end)
+        if ok then
+            success = true
+            print("✅ Webhook result sent on attempt #" .. i)
+            break
+        else
+            warn("⚠️ Failed to send webhook attempt #" .. i, err)
+            task.wait(1)
+        end
+    end
+    if not success then
+        warn("❌ All webhook attempts failed")
+    end
 end
 
--- ================= TRIGGER =================
-local sent = false
+-- TRIGGER
 resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
     if resultUI.Visible and not sent then
         sent = true
-        sendDiscord()
+        task.spawn(sendDiscordSafe)
     elseif not resultUI.Visible then
         sent = false
     end
@@ -250,89 +244,51 @@ end)
 
 -- ================= UI WEBHOOK PANEL =================
 local Tab2 = Window:CreateTab("Webhook", 4483362458)
-
--- INPUT WEBHOOK
 Tab2:CreateInput({
     Name = "Webhook Link",
     CurrentValue = customWebhook,
     PlaceholderText = "Paste Discord webhook here",
     RemoveTextAfterFocusLost = false,
-    Callback = function(Text)
-        customWebhook = Text
-    end,
+    Callback = function(Text) customWebhook = Text end,
 })
 
--- BUTTON TEST
 Tab2:CreateButton({
     Name = "Test Webhook",
     Callback = function()
         if customWebhook == "" then
             warn("⚠️ Webhook not entered")
-            Rayfield:Notify({
-                Title = "Webhook",
-                Content = "Please enter a webhook link!",
-                Duration = 2.5,
-                Image = 4483362458,
-            })
+            Rayfield:Notify({Title = "Webhook", Content = "Please enter a webhook link!", Duration = 2.5, Image = 4483362458})
             return
         end
-
-        local testData = {
-            username = "Webhook Tester",
-            embeds = {{
-                title = "✅ TEST WEBHOOK",
-                description = "Webhook is working correctly!",
-                color = 0x3498db
-            }}
-        }
-
-        pcall(function()
-            http_request({
-                Url = customWebhook,
-                Method = "POST",
-                Headers = { ["Content-Type"] = "application/json" },
-                Body = HttpService:JSONEncode(testData)
-            })
+        local testData = {username = "Webhook Tester", embeds = {{title = "✅ TEST WEBHOOK", description = "Webhook is working correctly!", color = 0x3498db}}}
+        local success, err = pcall(function()
+            http_request({Url = customWebhook, Method = "POST", Headers = {["Content-Type"]="application/json"}, Body = HttpService:JSONEncode(testData)})
         end)
-
-        print("✅ Test webhook sent")
-        Rayfield:Notify({
-            Title = "Webhook",
-            Content = "✅ Test Webhook successful!",
-            Duration = 2.5,
-            Image = 4483362458,
-        })
+        if success then
+            Rayfield:Notify({Title="Webhook", Content="✅ Test Webhook successful!", Duration=2.5, Image=4483362458})
+        else
+            Rayfield:Notify({Title="Webhook", Content="❌ Test Webhook failed!", Duration=2.5, Image=4483362458})
+            warn("❌ Test webhook failed", err)
+        end
     end,
 })
 
--- BUTTON SAVE
 Tab2:CreateButton({
     Name = "Save Webhook",
     Callback = function()
         if customWebhook ~= "" then
             writefile("custom_webhook.txt", customWebhook)
-            print("💾 Webhook saved")
-            Rayfield:Notify({
-                Title = "Webhook",
-                Content = "💾 Webhook saved successfully!",
-                Duration = 2.5,
-                Image = 4483362458,
-            })
+            Rayfield:Notify({Title="Webhook", Content="💾 Webhook saved successfully!", Duration=2.5, Image=4483362458})
         else
-            warn("⚠️ Webhook not entered")
-            Rayfield:Notify({
-                Title = "Webhook",
-                Content = "⚠️ Please enter a webhook link!",
-                Duration = 2.5,
-                Image = 4483362458,
-            })
+            Rayfield:Notify({Title="Webhook", Content="⚠️ Please enter a webhook link!", Duration=2.5, Image=4483362458})
         end
     end,
 })
+
 -- ================= UI TAB 3 — MISC =================
 local MiscTab = Window:CreateTab("Misc", 4483362458)
 
--- ================= ANTI-AFK FIX =================
+-- ANTI-AFK
 local AntiAFKEnabled = false
 local AntiAFKThread
 local AntiAFKConnection
@@ -356,8 +312,8 @@ end
 
 local function StopAntiAFK()
     AntiAFKEnabled = false
-    if AntiAFKConnection then AntiAFKConnection:Disconnect() AntiAFKConnection = nil end
-    if AntiAFKThread then task.cancel(AntiAFKThread) AntiAFKThread = nil end
+    if AntiAFKConnection then AntiAFKConnection:Disconnect() AntiAFKConnection=nil end
+    if AntiAFKThread then task.cancel(AntiAFKThread) AntiAFKThread=nil end
     print("🔴 Anti-AFK stopped")
 end
 
@@ -368,15 +324,15 @@ MiscTab:CreateToggle({
     Callback = function(Value)
         if Value then
             StartAntiAFK()
-            Rayfield:Notify({Title = "Anti-AFK", Content = "✅ Anti-AFK enabled", Duration = 2.5, Image = 4483362458})
+            Rayfield:Notify({Title="Anti-AFK", Content="✅ Anti-AFK enabled", Duration=2.5, Image=4483362458})
         else
             StopAntiAFK()
-            Rayfield:Notify({Title = "Anti-AFK", Content = "❌ Anti-AFK disabled", Duration = 2.5, Image = 4483362458})
+            Rayfield:Notify({Title="Anti-AFK", Content="❌ Anti-AFK disabled", Duration=2.5, Image=4483362458})
         end
     end
 })
 
--- ================= FPS BOOST =================
+-- FPS BOOST
 local FPSBoostEnabled = false
 MiscTab:CreateToggle({
     Name = "FPS Boost",
@@ -400,33 +356,33 @@ MiscTab:CreateToggle({
                     particle:Destroy()
                 end
             end
-            Rayfield:Notify({Title = "Performance", Content = "🚀 FPS Boost enabled", Duration = 2.5, Image = 4483362458})
+            Rayfield:Notify({Title="Performance", Content="🚀 FPS Boost enabled", Duration=2.5, Image=4483362458})
         else
             Lighting.GlobalShadows = true
             Workspace.StreamingEnabled = true
-            Rayfield:Notify({Title = "Performance", Content = "⚙️ FPS Boost disabled", Duration = 2.5, Image = 4483362458})
+            Rayfield:Notify({Title="Performance", Content="⚙️ FPS Boost disabled", Duration=2.5, Image=4483362458})
         end
     end
 })
 
--- ================= SAVE CONFIG =================
+-- SAVE CONFIG
 MiscTab:CreateButton({
     Name = "Save Config",
     Callback = function()
         Rayfield:SaveConfiguration()
-        Rayfield:Notify({Title = "Config", Content = "💾 Configuration saved successfully!", Duration = 2.5, Image = 4483362458})
+        Rayfield:Notify({Title="Config", Content="💾 Configuration saved successfully!", Duration=2.5, Image=4483362458})
     end
 })
 
--- ================= REJOIN =================
+-- REJOIN
 MiscTab:CreateButton({
     Name = "Rejoin",
     Callback = function()
-        Rayfield:Notify({Title = "Rejoin", Content = "⏳ Rejoining server...", Duration = 2.5, Image = 4483362458})
+        Rayfield:Notify({Title="Rejoin", Content="⏳ Rejoining server...", Duration=2.5, Image=4483362458})
         TeleportService:Teleport(game.PlaceId, lp)
     end
 })
 
--- ================= LOAD CONFIG =================
+-- LOAD CONFIG
 Rayfield:LoadConfiguration()
-print("✅ KazeHub Loaded Complete")
+print("✅ KazeHub Loaded Complete + Webhook Fixed")
