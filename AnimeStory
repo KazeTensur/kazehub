@@ -136,9 +136,122 @@ Main:CreateToggle({
     end
 })
 
--- ================= UI TAB 2 — WEBHOOK =================
+-- =====================================================
+-- TOWER DEFENSE RESULT + DISCORD WEBHOOK (ALL IN ONE)
+-- =====================================================
+
+-- ================= CONFIG =================
+local http_request =
+    (syn and syn.request)
+    or (http and http.request)
+    or (fluxus and fluxus.request)
+    or request
+
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+
+-- ================= WEBHOOK STATE =================
+local customWebhook = ""
+
+-- Load saved webhook from file
+pcall(function()
+    if isfile("custom_webhook.txt") then
+        customWebhook = readfile("custom_webhook.txt")
+        print("💾 Webhook loaded from file")
+    end
+end)
+
+-- ================= UI PATH (GAME) =================
+local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
+local content = resultUI:WaitForChild("Base"):WaitForChild("Content")
+
+local resultLabel  = content:WaitForChild("Result")
+local rewardFolder = content:WaitForChild("Rewards")
+local stageLabel   = content:WaitForChild("Stage")
+
+-- ================= DATA =================
+local function getTotalBalance()
+    local data = lp:FindFirstChild("Data")
+    if not data then return "Data not found" end
+
+    local coins = data:FindFirstChild("Coins")
+    local gems  = data:FindFirstChild("Gems")
+
+    return string.format(
+        "💰 **Coins:** %s\n💎 **Gems:** %s",
+        coins and coins.Value or 0,
+        gems and gems.Value or 0
+    )
+end
+
+local function getMatchRewards()
+    local rewards = {}
+    for _, item in ipairs(rewardFolder:GetChildren()) do
+        local qty = item:FindFirstChild("Quantity")
+        if qty and qty:IsA("TextLabel") and qty.Text ~= "" then
+            table.insert(rewards, "• **" .. item.Name .. "**: " .. qty.Text)
+        end
+    end
+    return #rewards > 0 and table.concat(rewards, "\n") or "No rewards found"
+end
+
+-- ================= SEND DISCORD =================
+local function sendDiscord()
+    if customWebhook == "" then
+        warn("⚠️ No webhook entered, cannot send results")
+        return
+    end
+
+    task.wait(3.5)
+
+    local resultText = resultLabel.Text
+    local isWin = resultText:lower():find("win") or resultText:lower():find("victory")
+
+    local data = {
+        username = "Tower Defense Report",
+        embeds = {{
+            title = (isWin and "🏆 VICTORY" or "💀 DEFEAT") .. " | MATCH RESULT",
+            color = isWin and 0x2ecc71 or 0xe74c3c,
+            description =
+                "👤 **Player:** `" .. lp.Name .. "`\n" ..
+                "🗺 **Stage:** `" .. stageLabel.Text .. "`",
+            fields = {
+                { name = "🎁 MATCH REWARDS", value = getMatchRewards(), inline = false },
+                { name = "💰 TOTAL BALANCE", value = getTotalBalance(), inline = false },
+            },
+            footer = { text = "Sent at " .. os.date("%H:%M:%S") },
+            timestamp = os.date("!%Y-%m-%dT%H:%M:%S.000Z")
+        }}
+    }
+
+    pcall(function()
+        http_request({
+            Url = customWebhook,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(data)
+        })
+    end)
+
+    print("✅ Webhook result sent")
+end
+
+-- ================= TRIGGER =================
+local sent = false
+resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
+    if resultUI.Visible and not sent then
+        sent = true
+        sendDiscord()
+    elseif not resultUI.Visible then
+        sent = false
+    end
+end)
+
+-- ================= UI WEBHOOK PANEL =================
 local Tab2 = Window:CreateTab("Webhook", 4483362458)
 
+-- INPUT WEBHOOK
 Tab2:CreateInput({
     Name = "Webhook Link",
     CurrentValue = customWebhook,
@@ -149,32 +262,31 @@ Tab2:CreateInput({
     end,
 })
 
+-- BUTTON TEST
 Tab2:CreateButton({
     Name = "Test Webhook",
     Callback = function()
         if customWebhook == "" then
+            warn("⚠️ Webhook not entered")
             Rayfield:Notify({
                 Title = "Webhook",
-                Content = "Webhook link not set!",
+                Content = "Please enter a webhook link!",
                 Duration = 2.5,
                 Image = 4483362458,
             })
             return
         end
+
         local testData = {
             username = "Webhook Tester",
             embeds = {{
                 title = "✅ TEST WEBHOOK",
-                description = "Webhook works properly!",
+                description = "Webhook is working correctly!",
                 color = 0x3498db
             }}
         }
+
         pcall(function()
-            local http_request =
-                (syn and syn.request)
-                or (http and http.request)
-                or (fluxus and fluxus.request)
-                or request
             http_request({
                 Url = customWebhook,
                 Method = "POST",
@@ -182,20 +294,24 @@ Tab2:CreateButton({
                 Body = HttpService:JSONEncode(testData)
             })
         end)
+
+        print("✅ Test webhook sent")
         Rayfield:Notify({
             Title = "Webhook",
-            Content = "✅ Test webhook successful!",
+            Content = "✅ Test Webhook successful!",
             Duration = 2.5,
             Image = 4483362458,
         })
     end,
 })
 
+-- BUTTON SAVE
 Tab2:CreateButton({
     Name = "Save Webhook",
     Callback = function()
         if customWebhook ~= "" then
             writefile("custom_webhook.txt", customWebhook)
+            print("💾 Webhook saved")
             Rayfield:Notify({
                 Title = "Webhook",
                 Content = "💾 Webhook saved successfully!",
@@ -203,16 +319,16 @@ Tab2:CreateButton({
                 Image = 4483362458,
             })
         else
+            warn("⚠️ Webhook not entered")
             Rayfield:Notify({
                 Title = "Webhook",
-                Content = "Webhook link not set!",
+                Content = "⚠️ Please enter a webhook link!",
                 Duration = 2.5,
                 Image = 4483362458,
             })
         end
     end,
 })
-
 -- ================= UI TAB 3 — MISC =================
 local MiscTab = Window:CreateTab("Misc", 4483362458)
 
@@ -313,20 +429,4 @@ MiscTab:CreateButton({
 
 -- ================= LOAD CONFIG =================
 Rayfield:LoadConfiguration()
-
--- ================= AUTO RE-ENABLE AFTER LOAD CONFIG =================
-task.delay(0.5, function()
-    local flags = Rayfield.Flags
-    -- Anti-AFK
-    if flags.AntiAFK and flags.AntiAFK.CurrentValue == true then
-        StartAntiAFK()
-        print("🔁 Anti-AFK auto re-enabled from config")
-    end
-    -- Auto Join
-    if flags.AutoJoin and flags.AutoJoin.CurrentValue == true then
-        runAutoJoin()
-        print("🚀 Auto Join re-triggered from config")
-    end
-end)
-
 print("✅ KazeHub Loaded Complete")
