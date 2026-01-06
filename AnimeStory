@@ -1,0 +1,464 @@
+-- ================= KAZEHUB TOGGLE VERSION =================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "KazeHub | Auto Join Toggle",
+    Icon = 0,
+    LoadingTitle = "welcome to KazeHub!",
+    LoadingSubtitle = "by Kaze",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "Kazehub",
+        FileName = "kazehub"
+    }
+})
+
+-- ================= SERVICES =================
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+local RemoteEvent = game:GetService("ReplicatedStorage")
+    :WaitForChild("API")
+    :WaitForChild("Utils")
+    :WaitForChild("network")
+    :WaitForChild("RemoteEvent")
+
+local WorldsFolder = workspace:WaitForChild("Worlds", 10)
+local TeleportService = game:GetService("TeleportService")
+local VirtualUser = game:GetService("VirtualUser")
+
+-- ================= STATE =================
+local SelectedMode = "Story"
+local SelectedMap = nil
+local SelectedAct = "1"
+local SelectedDifficulty = "Normal"
+local AntiAFKEnabled = true
+local RaidMaps = {"Vastora Realm","Ember Village","Power Arena"}
+
+-- ================= FUNCTIONS =================
+local function getSortedMaps()
+    local list = {}
+    if WorldsFolder then
+        for _, map in ipairs(WorldsFolder:GetChildren()) do
+            if map:IsA("Model") or map:IsA("Folder") then
+                table.insert(list, map.Name)
+            end
+        end
+    end
+    table.sort(list, function(a,b) return a:lower() < b:lower() end)
+    return list
+end
+
+local function runAutoJoin()
+    if not SelectedMap then 
+        Rayfield:Notify({Title = "Thiếu thông tin", Content = "Vui lòng chọn Map!", Duration = 3})
+        return 
+    end
+
+    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    if SelectedMode == "Story" then
+        RemoteEvent:FireServer("battle_start", "story", SelectedMap, tonumber(SelectedAct), SelectedDifficulty)
+        print("🚀 Đã Start Story: " .. SelectedMap)
+    elseif SelectedMode == "Raid" then
+        local raidFolder = workspace:WaitForChild("Rooms"):WaitForChild("raid")
+        for _, roomModel in ipairs(raidFolder:GetChildren()) do
+            local touchPart = roomModel:FindFirstChild("Touch", true)
+            if touchPart and touchPart:IsA("BasePart") then
+                firetouchinterest(hrp, touchPart, 0)
+                task.wait(0.1)
+                firetouchinterest(hrp, touchPart, 1)
+                task.wait(0.5)
+                RemoteEvent:FireServer("room_select", SelectedMap, 1)
+                task.wait(0.3)
+                RemoteEvent:FireServer("room_start")
+                print("✅ Đã Start Raid: " .. SelectedMap)
+                break
+            end
+        end
+    end
+end
+
+-- ================= UI =================
+local Main = Window:CreateTab("Lobby / Farm", 4483362458)
+local MapDropdown
+
+Main:CreateDropdown({
+    Name = "1. Select Mode",
+    Options = {"Story","Raid"},
+    CurrentOption = {"Story"},
+    Callback = function(opt)
+        SelectedMode = opt[1]
+        if MapDropdown then
+            MapDropdown:Refresh(SelectedMode == "Raid" and RaidMaps or getSortedMaps(), true)
+        end
+    end
+})
+
+MapDropdown = Main:CreateDropdown({
+    Name = "2. Select Map",
+    Options = getSortedMaps(),
+    CurrentOption = {},
+    Callback = function(opt) SelectedMap = opt[1] end
+})
+
+Main:CreateDropdown({
+    Name = "3. Select Act",
+    Options = {"1","2","3","4","5","6","7","8","9","10"},
+    CurrentOption = {"1"},
+    Callback = function(opt) SelectedAct = opt[1] end
+})
+
+Main:CreateDropdown({
+    Name = "4. Difficulty",
+    Options = {"Normal","Hard","Nightmare"},
+    CurrentOption = {"Normal"},
+    Callback = function(opt) SelectedDifficulty = opt[1] end
+})
+
+-- ĐÃ THAY THÀNH TOGGLE
+Main:CreateToggle({
+    Name = "Auto Join & Start",
+    CurrentValue = false,
+    Callback = function(val)
+        if val then
+            runAutoJoin()
+            -- Thông báo cho người dùng
+            Rayfield:Notify({Title = "KazeHub", Content = "Đang thực hiện tham gia...", Duration = 2})
+        end
+    end
+})
+
+-- =====================================================
+-- TOWER DEFENSE RESULT + DISCORD WEBHOOK (ALL IN ONE)
+-- =====================================================
+
+-- ================= CONFIG =================
+local http_request =
+  (syn and syn.request)
+  or (http and http.request)
+  or (fluxus and fluxus.request)
+  or request
+
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+
+-- ================= WEBHOOK STATE =================
+local customWebhook = ""
+
+-- Load webhook đã lưu từ file
+pcall(function()
+    if isfile("custom_webhook.txt") then
+        customWebhook = readfile("custom_webhook.txt")
+        print("💾 Đã load webhook từ file")
+    end
+end)
+
+-- ================= UI PATH (GAME) =================
+local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
+local content = resultUI:WaitForChild("Base"):WaitForChild("Content")
+
+local resultLabel  = content:WaitForChild("Result")
+local rewardFolder = content:WaitForChild("Rewards")
+local stageLabel   = content:WaitForChild("Stage")
+
+-- ================= DATA =================
+local function getTotalBalance()
+    local data = lp:FindFirstChild("Data")
+    if not data then return "Không tìm thấy Data" end
+
+    local coins = data:FindFirstChild("Coins")
+    local gems  = data:FindFirstChild("Gems")
+
+    return string.format(
+        "💰 **Coins:** %s\n💎 **Gems:** %s",
+        coins and coins.Value or 0,
+        gems and gems.Value or 0
+    )
+end
+
+local function getMatchRewards()
+    local rewards = {}
+    for _, item in ipairs(rewardFolder:GetChildren()) do
+        local qty = item:FindFirstChild("Quantity")
+        if qty and qty:IsA("TextLabel") and qty.Text ~= "" then
+            table.insert(rewards, "• **" .. item.Name .. "**: " .. qty.Text)
+        end
+    end
+    return #rewards > 0 and table.concat(rewards, "\n") or "Không có phần thưởng"
+end
+
+-- ================= SEND DISCORD =================
+local function sendDiscord()
+    if customWebhook == "" then
+        warn("⚠️ Chưa nhập webhook, không thể gửi result")
+        return
+    end
+
+    task.wait(3.5)
+
+    local resultText = resultLabel.Text
+    local isWin = resultText:lower():find("win") or resultText:lower():find("victory")
+
+    local data = {
+        username = "Tower Defense Report",
+        embeds = {{
+            title = (isWin and "🏆 VICTORY" or "💀 DEFEAT") .. " | MATCH RESULT",
+            color = isWin and 0x2ecc71 or 0xe74c3c,
+            description =
+                "👤 **Player:** `" .. lp.Name .. "`\n" ..
+                "🗺 **Stage:** `" .. stageLabel.Text .. "`",
+            fields = {
+                { name = "🎁 PHẦN THƯỞNG", value = getMatchRewards(), inline = false },
+                { name = "💰 TỔNG TÀI SẢN", value = getTotalBalance(), inline = false },
+            },
+            footer = { text = "Sent at " .. os.date("%H:%M:%S") },
+            timestamp = os.date("!%Y-%m-%dT%H:%M:%S.000Z")
+        }}
+    }
+
+    pcall(function()
+        http_request({
+            Url = customWebhook,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(data)
+        })
+    end)
+
+    print("✅ Đã gửi webhook result")
+end
+
+-- ================= TRIGGER =================
+local sent = false
+resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
+    if resultUI.Visible and not sent then
+        sent = true
+        sendDiscord()
+    elseif not resultUI.Visible then
+        sent = false
+    end
+end)
+
+-- ================= UI WEBHOOK PANEL =================
+local Tab2 = Window:CreateTab("Webhook", 4483362458)
+
+-- INPUT WEBHOOK
+Tab2:CreateInput({
+    Name = "Link Webhook",
+    CurrentValue = customWebhook,
+    PlaceholderText = "Dán webhook Discord vào đây",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        customWebhook = Text
+    end,
+})
+
+-- BUTTON TEST
+Tab2:CreateButton({
+    Name = "Test Webhook",
+    Callback = function()
+        if customWebhook == "" then
+            warn("⚠️ Chưa nhập webhook")
+            Rayfield:Notify({
+                Title = "Webhook",
+                Content = "Chưa nhập link webhook!",
+                Duration = 2.5,
+                Image = 4483362458,
+            })
+            return
+        end
+
+        local testData = {
+            username = "Webhook Tester",
+            embeds = {{
+                title = "✅ TEST WEBHOOK",
+                description = "Webhook hoạt động bình thường!",
+                color = 0x3498db
+            }}
+        }
+
+        pcall(function()
+            http_request({
+                Url = customWebhook,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = HttpService:JSONEncode(testData)
+            })
+        end)
+
+        print("✅ Đã gửi test webhook")
+        Rayfield:Notify({
+            Title = "Webhook",
+            Content = "✅ Test Webhook thành công!",
+            Duration = 2.5,
+            Image = 4483362458,
+        })
+    end,
+})
+
+-- BUTTON SAVE
+Tab2:CreateButton({
+    Name = "Save Webhook",
+    Callback = function()
+        if customWebhook ~= "" then
+            writefile("custom_webhook.txt", customWebhook)
+            print("💾 Đã lưu webhook")
+            Rayfield:Notify({
+                Title = "Webhook",
+                Content = "💾 Đã lưu webhook thành công!",
+                Duration = 2.5,
+                Image = 4483362458,
+            })
+        else
+            warn("⚠️ Chưa nhập webhook")
+            Rayfield:Notify({
+                Title = "Webhook",
+                Content = "⚠️ Chưa nhập link webhook!",
+                Duration = 2.5,
+                Image = 4483362458,
+            })
+        end
+    end,
+})
+
+
+--//MiscTab
+-- ================= WINDOW MISC (Anti-AFK + FPS Boost) =================
+    -- ================= WINDOW MISC (Anti-AFK + FPS Boost + Save Config + Rejoin) =================
+    local MiscTab = Window:CreateTab("Misc", 4483362458)
+
+    local Players = game:GetService("Players")
+    local lp = Players.LocalPlayer
+    local RunService = game:GetService("RunService")
+    local VirtualUser = game:GetService("VirtualUser")
+    local Lighting = game:GetService("Lighting")
+    local Workspace = game:GetService("Workspace")
+    local TeleportService = game:GetService("TeleportService")
+
+    -- ================= ANTI-AFK =================
+    local AntiAFKEnabled = true -- Mặc định bật
+
+    local function AntiAFKAdvanced()
+        lp.Idled:Connect(function()
+            if AntiAFKEnabled then
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new(0,0))
+            end
+        end)
+
+        task.spawn(function()
+            while true do
+                task.wait(30)
+                if AntiAFKEnabled then
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new(0,0))
+                end
+            end
+        end)
+    end
+
+    AntiAFKAdvanced()
+    print("⚡ Anti-AFK nâng cao đã tự động bật!")
+
+    MiscTab:CreateToggle({
+        Name = "Anti-AFK",
+        CurrentValue = true,
+        Flag = "AntiAFK",
+        Callback = function(Value)
+            AntiAFKEnabled = Value
+            Rayfield:Notify({
+                Title = "Anti-AFK",
+                Content = Value and "✅ Anti-AFK đã bật" or "❌ Anti-AFK đã tắt",
+                Duration = 2.5,
+                Image = 4483362458,
+            })
+        end
+    })
+
+    -- ================= FPS BOOST =================
+    local FPSBoostEnabled = false
+
+    MiscTab:CreateToggle({
+        Name = "FPS Boost",
+        CurrentValue = false,
+        Flag = "FPSBoost",
+        Callback = function(Value)
+            FPSBoostEnabled = Value
+
+            if Value then
+                -- Giảm chất lượng đồ họa, shadows, texture
+                for _, v in pairs(Workspace:GetDescendants()) do
+                    if v:IsA("Part") or v:IsA("UnionOperation") or v:IsA("MeshPart") then
+                        v.Material = Enum.Material.Plastic
+                        v.Reflectance = 0
+                    end
+                end
+
+                Lighting.GlobalShadows = false
+                Lighting.FogEnd = 9e9
+                Lighting.Brightness = 2
+                Workspace.StreamingEnabled = false
+
+                -- Giảm texture & particles
+                for _, particle in pairs(Workspace:GetDescendants()) do
+                    if particle:IsA("ParticleEmitter") or particle:IsA("Trail") then
+                        particle:Destroy()
+                    end
+                end
+
+                Rayfield:Notify({
+                    Title = "Performance",
+                    Content = "🚀 FPS Boost đã bật",
+                    Duration = 2.5,
+                    Image = 4483362458,
+                })
+            else
+                -- Reset cơ bản
+                Lighting.GlobalShadows = true
+                Workspace.StreamingEnabled = true
+
+                Rayfield:Notify({
+                    Title = "Performance",
+                    Content = "⚙️ FPS Boost đã tắt",
+                    Duration = 2.5,
+                    Image = 4483362458,
+                })
+            end
+        end
+    })
+
+    -- ================= SAVE CONFIG =================
+    MiscTab:CreateButton({
+        Name = "Save Config",
+        Callback = function()
+            Rayfield:SaveConfiguration()
+            Rayfield:Notify({
+                Title = "Config",
+                Content = "💾 Đã lưu cấu hình!",
+                Duration = 2.5,
+                Image = 4483362458,
+            })
+        end
+    })
+
+-- ... (Giữ nguyên phần đầu cho đến nút Rejoin)
+
+-- ================= REJOIN BUTTON =================
+MiscTab:CreateButton({
+Name = "Rejoin",
+Callback = function()
+Rayfield:Notify({
+    Title = "Rejoin",
+    Content = "⏳ Đang rejoin server...",
+    Duration = 2.5,
+    Image = 4483362458,
+})
+local TeleportService = game:GetService("TeleportService")
+TeleportService:Teleport(game.PlaceId, game.Players.LocalPlayer)
+end
+})
+
+Rayfield:LoadConfiguration()
+print("✅ KazeHub Loaded")
