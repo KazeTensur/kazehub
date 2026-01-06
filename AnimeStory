@@ -1,4 +1,4 @@
--- ================= KAZEHUB COMPLETE + WEBHOOK FIXED =================
+-- ================= KAZEHUB COMPLETE VERSION (FIXED WEBHOOK) =================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -63,7 +63,6 @@ local function runAutoJoin()
 
     if SelectedMode == "Story" then
         RemoteEvent:FireServer("battle_start", "story", SelectedMap, tonumber(SelectedAct), SelectedDifficulty)
-        print("🚀 Started Story: " .. SelectedMap)
     elseif SelectedMode == "Raid" then
         local raidFolder = workspace:WaitForChild("Rooms"):WaitForChild("raid")
         for _, roomModel in ipairs(raidFolder:GetChildren()) do
@@ -76,14 +75,96 @@ local function runAutoJoin()
                 RemoteEvent:FireServer("room_select", SelectedMap, 1)
                 task.wait(0.3)
                 RemoteEvent:FireServer("room_start")
-                print("✅ Started Raid: " .. SelectedMap)
                 break
             end
         end
     end
 end
 
--- ================= UI TAB 1 — LOBBY / FARM =================
+-- ================= WEBHOOK CORE (UPGRADED) =================
+local http_request = (syn and syn.request) or (http and http.request) or (fluxus and fluxus.request) or request
+
+pcall(function()
+    if isfile("custom_webhook.txt") then
+        customWebhook = readfile("custom_webhook.txt"):gsub("%s+", "")
+    end
+end)
+
+local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
+local content = resultUI:WaitForChild("Base"):WaitForChild("Content")
+
+local function getTotalBalance()
+    local data = lp:FindFirstChild("Data")
+    if not data then return "Data not found" end
+    local coins = data:FindFirstChild("Coins")
+    local gems  = data:FindFirstChild("Gems")
+    return string.format("💰 **Coins:** %s\n💎 **Gems:** %s", coins and coins.Value or 0, gems and gems.Value or 0)
+end
+
+local function getMatchRewards()
+    local rewards = {}
+    local rewardFolder = content:WaitForChild("Rewards")
+    for _, item in ipairs(rewardFolder:GetChildren()) do
+        local qty = item:FindFirstChild("Quantity")
+        if qty and qty:IsA("TextLabel") and qty.Text ~= "" then
+            table.insert(rewards, "• **" .. item.Name .. "**: " .. qty.Text)
+        end
+    end
+    return #rewards > 0 and table.concat(rewards, "\n") or "No rewards found"
+end
+
+local function sendDiscordSafe()
+    if customWebhook == "" or not customWebhook:find("http") then return end
+
+    local resultLabel = content:WaitForChild("Result")
+    local stageLabel  = content:WaitForChild("Stage")
+    
+    local isWin = resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory")
+
+    local data = {
+        username = "KazeHub Report",
+        embeds = {{
+            title = (isWin and "🏆 VICTORY" or "💀 DEFEAT") .. " | MATCH RESULT",
+            color = isWin and 0x2ecc71 or 0xe74c3c,
+            description = "👤 **Player:** `" .. lp.Name .. "`\n" .. "🗺 **Stage:** `" .. stageLabel.Text .. "`",
+            fields = {
+                { name = "🎁 MATCH REWARDS", value = getMatchRewards(), inline = false },
+                { name = "💰 TOTAL BALANCE", value = getTotalBalance(), inline = false },
+            },
+            footer = { text = "KazeHub • " .. os.date("%H:%M:%S") },
+            timestamp = os.date("!%Y-%m-%dT%H:%M:%S.000Z")
+        }}
+    }
+
+    pcall(function()
+        http_request({
+            Url = customWebhook,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(data)
+        })
+    end)
+end
+
+-- ================= WEBHOOK TRIGGER (AUTO CHECK) =================
+local hasSent = false
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if resultUI and resultUI.Visible == true then
+            if not hasSent then
+                hasSent = true
+                task.wait(2) -- Đợi UI load xong text
+                sendDiscordSafe()
+                print("✅ Webhook Result Sent")
+            end
+        else
+            hasSent = false -- Reset khi bảng biến mất
+        end
+    end
+end)
+
+-- ================= UI TABS =================
 local Main = Window:CreateTab("Lobby / Farm", 4483362458)
 local MapDropdown
 
@@ -91,7 +172,6 @@ Main:CreateDropdown({
     Name = "1. Select Mode",
     Options = {"Story","Raid"},
     CurrentOption = {"Story"},
-    Flag = "SelectedMode",
     Callback = function(opt)
         SelectedMode = opt[1]
         if MapDropdown then
@@ -104,7 +184,6 @@ MapDropdown = Main:CreateDropdown({
     Name = "2. Select Map",
     Options = getSortedMaps(),
     CurrentOption = {},
-    Flag = "SelectedMap",
     Callback = function(opt) SelectedMap = opt[1] end
 })
 
@@ -112,7 +191,6 @@ Main:CreateDropdown({
     Name = "3. Select Act",
     Options = {"1","2","3","4","5","6","7","8","9","10"},
     CurrentOption = {"1"},
-    Flag = "SelectedAct",
     Callback = function(opt) SelectedAct = opt[1] end
 })
 
@@ -120,269 +198,56 @@ Main:CreateDropdown({
     Name = "4. Difficulty",
     Options = {"Normal","Hard","Nightmare"},
     CurrentOption = {"Normal"},
-    Flag = "SelectedDifficulty",
     Callback = function(opt) SelectedDifficulty = opt[1] end
 })
 
 Main:CreateToggle({
     Name = "Auto Join & Start",
     CurrentValue = false,
-    Flag = "AutoJoin",
     Callback = function(val)
-        if val then
-            runAutoJoin()
-            Rayfield:Notify({Title = "KazeHub", Content = "Joining match...", Duration = 2})
-        end
+        if val then runAutoJoin() end
     end
 })
 
--- ================= TOWER DEFENSE RESULT + DISCORD WEBHOOK (UPGRADED) =================
-local http_request =
-    (syn and syn.request)
-    or (http and http.request)
-    or (fluxus and fluxus.request)
-    or request
-
--- Load saved webhook from file
-pcall(function()
-    if isfile("custom_webhook.txt") then
-        customWebhook = readfile("custom_webhook.txt")
-        print("💾 Webhook loaded from file")
-    end
-end)
-
--- UI PATH
-local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
-local content = resultUI:WaitForChild("Base"):WaitForChild("Content")
-local resultLabel  = content:WaitForChild("Result")
-local rewardFolder = content:WaitForChild("Rewards")
-local stageLabel   = content:WaitForChild("Stage")
-
--- DATA FUNCTIONS
-local function getTotalBalance()
-    local data = lp:FindFirstChild("Data")
-    if not data then return "Data not found" end
-    local coins = data:FindFirstChild("Coins")
-    local gems  = data:FindFirstChild("Gems")
-    return string.format("💰 **Coins:** %s\n💎 **Gems:** %s", coins and coins.Value or 0, gems and gems.Value or 0)
-end
-
-local function getMatchRewards()
-    local rewards = {}
-    for _, item in ipairs(rewardFolder:GetChildren()) do
-        local qty = item:FindFirstChild("Quantity")
-        if qty and qty:IsA("TextLabel") and qty.Text ~= "" then
-            table.insert(rewards, "• **" .. item.Name .. "**: " .. qty.Text)
-        end
-    end
-    return #rewards > 0 and table.concat(rewards, "\n") or "No rewards found"
-end
-
--- SEND DISCORD SAFE + RETRY
-local sent = false
-local maxRetry = 3
-
-local function sendDiscordSafe()
-    if customWebhook == "" then
-        warn("⚠️ No webhook entered, cannot send results")
-        return
-    end
-
-    repeat task.wait(0.1) until resultLabel.Text ~= "" and stageLabel.Text ~= ""
-    local resultText = resultLabel.Text
-    local textLower = resultText:lower()
-    local isWin = textLower:find("win") or textLower:find("victory") or textLower:find("victorious")
-
-    local data = {
-        username = "Tower Defense Report",
-        embeds = {{
-            title = (isWin and "🏆 VICTORY" or "💀 DEFEAT") .. " | MATCH RESULT",
-            color = isWin and 0x2ecc71 or 0xe74c3c,
-            description = "👤 **Player:** `" .. lp.Name .. "`\n" .. "🗺 **Stage:** `" .. stageLabel.Text .. "`",
-            fields = {
-                { name = "🎁 MATCH REWARDS", value = getMatchRewards(), inline = false },
-                { name = "💰 TOTAL BALANCE", value = getTotalBalance(), inline = false },
-            },
-            footer = { text = "Sent at " .. os.date("%H:%M:%S") },
-            timestamp = os.date("!%Y-%m-%dT%H:%M:%S.000Z")
-        }}
-    }
-
-    local success = false
-    for i = 1, maxRetry do
-        local ok, err = pcall(function()
-            http_request({
-                Url = customWebhook,
-                Method = "POST",
-                Headers = { ["Content-Type"] = "application/json" },
-                Body = HttpService:JSONEncode(data)
-            })
-        end)
-        if ok then
-            success = true
-            print("✅ Webhook result sent on attempt #" .. i)
-            break
-        else
-            warn("⚠️ Failed to send webhook attempt #" .. i, err)
-            task.wait(1)
-        end
-    end
-    if not success then
-        warn("❌ All webhook attempts failed")
-    end
-end
-
--- TRIGGER
-resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
-    if resultUI.Visible and not sent then
-        sent = true
-        task.spawn(sendDiscordSafe)
-    elseif not resultUI.Visible then
-        sent = false
-    end
-end)
-
--- ================= UI WEBHOOK PANEL =================
 local Tab2 = Window:CreateTab("Webhook", 4483362458)
+
 Tab2:CreateInput({
     Name = "Webhook Link",
     CurrentValue = customWebhook,
     PlaceholderText = "Paste Discord webhook here",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(Text) customWebhook = Text end,
+    Callback = function(Text) customWebhook = Text:gsub("%s+", "") end,
 })
 
 Tab2:CreateButton({
-    Name = "Test Webhook",
-    Callback = function()
-        if customWebhook == "" then
-            warn("⚠️ Webhook not entered")
-            Rayfield:Notify({Title = "Webhook", Content = "Please enter a webhook link!", Duration = 2.5, Image = 4483362458})
-            return
-        end
-        local testData = {username = "Webhook Tester", embeds = {{title = "✅ TEST WEBHOOK", description = "Webhook is working correctly!", color = 0x3498db}}}
-        local success, err = pcall(function()
-            http_request({Url = customWebhook, Method = "POST", Headers = {["Content-Type"]="application/json"}, Body = HttpService:JSONEncode(testData)})
-        end)
-        if success then
-            Rayfield:Notify({Title="Webhook", Content="✅ Test Webhook successful!", Duration=2.5, Image=4483362458})
-        else
-            Rayfield:Notify({Title="Webhook", Content="❌ Test Webhook failed!", Duration=2.5, Image=4483362458})
-            warn("❌ Test webhook failed", err)
-        end
-    end,
-})
-
-Tab2:CreateButton({
-    Name = "Save Webhook",
+    Name = "Test & Save Webhook",
     Callback = function()
         if customWebhook ~= "" then
             writefile("custom_webhook.txt", customWebhook)
-            Rayfield:Notify({Title="Webhook", Content="💾 Webhook saved successfully!", Duration=2.5, Image=4483362458})
-        else
-            Rayfield:Notify({Title="Webhook", Content="⚠️ Please enter a webhook link!", Duration=2.5, Image=4483362458})
+            local testData = {username = "KazeHub", embeds = {{title = "✅ Kết nối thành công!", color = 0x3498db}}}
+            http_request({Url = customWebhook, Method = "POST", Headers = {["Content-Type"]="application/json"}, Body = HttpService:JSONEncode(testData)})
+            Rayfield:Notify({Title="Webhook", Content="💾 Đã lưu và gửi thử thành công!", Duration=3})
         end
     end,
 })
 
--- ================= UI TAB 3 — MISC =================
 local MiscTab = Window:CreateTab("Misc", 4483362458)
-
--- ANTI-AFK
-local AntiAFKEnabled = false
-local AntiAFKThread
-local AntiAFKConnection
-
-local function StartAntiAFK()
-    if AntiAFKEnabled then return end
-    AntiAFKEnabled = true
-    AntiAFKConnection = lp.Idled:Connect(function()
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new(0,0))
-    end)
-    AntiAFKThread = task.spawn(function()
-        while AntiAFKEnabled do
-            task.wait(30)
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new(0,0))
-        end
-    end)
-    print("🟢 Anti-AFK started")
-end
-
-local function StopAntiAFK()
-    AntiAFKEnabled = false
-    if AntiAFKConnection then AntiAFKConnection:Disconnect() AntiAFKConnection=nil end
-    if AntiAFKThread then task.cancel(AntiAFKThread) AntiAFKThread=nil end
-    print("🔴 Anti-AFK stopped")
-end
 
 MiscTab:CreateToggle({
     Name = "Anti-AFK",
     CurrentValue = false,
-    Flag = "AntiAFK",
     Callback = function(Value)
         if Value then
-            StartAntiAFK()
-            Rayfield:Notify({Title="Anti-AFK", Content="✅ Anti-AFK enabled", Duration=2.5, Image=4483362458})
+            _G.AntiAFK = lp.Idled:Connect(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new(0,0))
+            end)
         else
-            StopAntiAFK()
-            Rayfield:Notify({Title="Anti-AFK", Content="❌ Anti-AFK disabled", Duration=2.5, Image=4483362458})
+            if _G.AntiAFK then _G.AntiAFK:Disconnect() end
         end
     end
 })
 
--- FPS BOOST
-local FPSBoostEnabled = false
-MiscTab:CreateToggle({
-    Name = "FPS Boost",
-    CurrentValue = false,
-    Flag = "FPSBoost",
-    Callback = function(Value)
-        FPSBoostEnabled = Value
-        if Value then
-            for _, v in pairs(Workspace:GetDescendants()) do
-                if v:IsA("Part") or v:IsA("UnionOperation") or v:IsA("MeshPart") then
-                    v.Material = Enum.Material.Plastic
-                    v.Reflectance = 0
-                end
-            end
-            Lighting.GlobalShadows = false
-            Lighting.FogEnd = 9e9
-            Lighting.Brightness = 2
-            Workspace.StreamingEnabled = false
-            for _, particle in pairs(Workspace:GetDescendants()) do
-                if particle:IsA("ParticleEmitter") or particle:IsA("Trail") then
-                    particle:Destroy()
-                end
-            end
-            Rayfield:Notify({Title="Performance", Content="🚀 FPS Boost enabled", Duration=2.5, Image=4483362458})
-        else
-            Lighting.GlobalShadows = true
-            Workspace.StreamingEnabled = true
-            Rayfield:Notify({Title="Performance", Content="⚙️ FPS Boost disabled", Duration=2.5, Image=4483362458})
-        end
-    end
-})
+MiscTab:CreateButton({ Name = "Rejoin", Callback = function() TeleportService:Teleport(game.PlaceId, lp) end })
 
--- SAVE CONFIG
-MiscTab:CreateButton({
-    Name = "Save Config",
-    Callback = function()
-        Rayfield:SaveConfiguration()
-        Rayfield:Notify({Title="Config", Content="💾 Configuration saved successfully!", Duration=2.5, Image=4483362458})
-    end
-})
-
--- REJOIN
-MiscTab:CreateButton({
-    Name = "Rejoin",
-    Callback = function()
-        Rayfield:Notify({Title="Rejoin", Content="⏳ Rejoining server...", Duration=2.5, Image=4483362458})
-        TeleportService:Teleport(game.PlaceId, lp)
-    end
-})
-
--- LOAD CONFIG
 Rayfield:LoadConfiguration()
-print("✅ KazeHub Loaded Complete + Webhook Fixed")
+print("✅ KazeHub Loaded - Webhook Monitor Active")
