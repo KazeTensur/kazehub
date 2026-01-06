@@ -2,7 +2,7 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "KazeHub | Auto Join Toggle",
+    Name = "KazeHub!",
     Icon = 0,
     LoadingTitle = "welcome to KazeHub!",
     LoadingSubtitle = "by Kaze",
@@ -87,6 +87,7 @@ Main:CreateDropdown({
     Name = "1. Select Mode",
     Options = {"Story","Raid"},
     CurrentOption = {"Story"},
+    Flag = "SelectedMode",
     Callback = function(opt)
         SelectedMode = opt[1]
         if MapDropdown then
@@ -99,6 +100,7 @@ MapDropdown = Main:CreateDropdown({
     Name = "2. Select Map",
     Options = getSortedMaps(),
     CurrentOption = {},
+    Flag = "SelectedMap",
     Callback = function(opt) SelectedMap = opt[1] end
 })
 
@@ -106,6 +108,7 @@ Main:CreateDropdown({
     Name = "3. Select Act",
     Options = {"1","2","3","4","5","6","7","8","9","10"},
     CurrentOption = {"1"},
+    Flag = "SelectedAct",
     Callback = function(opt) SelectedAct = opt[1] end
 })
 
@@ -113,6 +116,7 @@ Main:CreateDropdown({
     Name = "4. Difficulty",
     Options = {"Normal","Hard","Nightmare"},
     CurrentOption = {"Normal"},
+    Flag = "SelectedDifficulty",
     Callback = function(opt) SelectedDifficulty = opt[1] end
 })
 
@@ -120,6 +124,7 @@ Main:CreateDropdown({
 Main:CreateToggle({
     Name = "Auto Join & Start",
     CurrentValue = false,
+    Flag = "AutoJoin",
     Callback = function(val)
         if val then
             runAutoJoin()
