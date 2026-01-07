@@ -139,7 +139,8 @@ local function sendResultWebhook()
     end
 
     -- Lấy Rewards
-    local rewardText = (#rewardFolder:GetChildren() > 0) and "Xem trong game" or "Không có"
+    local rewardText = getMatchRewards() -- dùng hàm đã định nghĩa
+
 
     -- Proxy chống block Delta
     local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
