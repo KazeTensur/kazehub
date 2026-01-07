@@ -391,3 +391,4 @@ resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
 end)
 
 Rayfield:LoadConfiguration()
+tại sao nó chỉ hiện main tan và hiện mỗi dropdown story? giúp tôi với
