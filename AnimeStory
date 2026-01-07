@@ -104,12 +104,44 @@ local function getTotalBalance()
     return string.format("💰 Coins: %s\n💎 Gems: %s", coins and coins.Value or 0, gems and gems.Value or 0)
 end
 
+-- ================= WEBHOOK CORE (BALANCE + ITEMS) =================
 local function sendResultWebhook()
     if not WebhookEnabled then return end
     if customWebhook == "" or customWebhook == " " then return end
     if type(s_request) ~= "function" then return end
 
-    -- proxy chống block Delta
+    -- Lấy Balance
+    local data = lp:FindFirstChild("Data")
+    local coins = data and data:FindFirstChild("Coins")
+    local gems  = data and data:FindFirstChild("Gems")
+    local balanceText = string.format("💰 Coins: %s\n💎 Gems: %s", coins and coins.Value or 0, gems and gems.Value or 0)
+
+    -- Lấy Items
+    local itemsFolder = lp.PlayerGui:FindFirstChild("main") 
+                        and lp.PlayerGui.main:FindFirstChild("Inventory") 
+                        and lp.PlayerGui.main.Inventory:FindFirstChild("Base") 
+                        and lp.PlayerGui.main.Inventory.Base:FindFirstChild("Content") 
+                        and lp.PlayerGui.main.Inventory.Base.Content:FindFirstChild("Items")
+
+    local traitText = ""
+    if itemsFolder then
+        local traitTokens = itemsFolder:FindFirstChild("Trait Tokens")
+        local ice = itemsFolder:FindFirstChild("Ice")
+        local stocking = itemsFolder:FindFirstChild("Christmas Stocking")
+
+        local traitQty = traitTokens and traitTokens:FindFirstChild("Quantity") and traitTokens.Quantity.Text or "0"
+        local iceQty = ice and ice:FindFirstChild("Quantity") and ice.Quantity.Text or "0"
+        local stockQty = stocking and stocking:FindFirstChild("Quantity") and stocking.Quantity.Text or "0"
+
+        traitText = string.format("🎯 Trait Tokens: %s\n❄️ Ice: %s\n🎁 Christmas Stocking: %s", traitQty, iceQty, stockQty)
+    else
+        traitText = "🎯 Trait Tokens: 0\n❄️ Ice: 0\n🎁 Christmas Stocking: 0"
+    end
+
+    -- Lấy Rewards
+    local rewardText = (#rewardFolder:GetChildren() > 0) and "Xem trong game" or "Không có"
+
+    -- Proxy chống block Delta
     local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
 
     local payload = {
@@ -123,16 +155,9 @@ local function sendResultWebhook()
                 "👤 Player: **"..lp.Name.."**\n"..
                 "🗺 Stage: **"..stageLabel.Text.."**",
             fields = {
-                {
-                    name = "🎁 Rewards",
-                    value = getMatchRewards(),
-                    inline = false
-                },
-                {
-                    name = "💰 Balance",
-                    value = getTotalBalance(),
-                    inline = false
-                }
+                {name = "🎁 Rewards", value = rewardText, inline = false},
+                {name = "💰 Balance", value = balanceText, inline = false},
+                {name = "🛠️ Items", value = traitText, inline = false}
             },
             footer = { text = "KazeHub | Delta X Safe" }
         }}
