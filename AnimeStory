@@ -77,95 +77,67 @@ local function isPlayerInBattle()
     local gui = lp.PlayerGui:FindFirstChild("battle")
     return gui and gui.Enabled
 end
+-- ================= UI PATH (RESULT UI) =================
+local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
+local content = resultUI:WaitForChild("Base"):WaitForChild("Content")
+local resultLabel  = content:WaitForChild("Result")
+local rewardFolder = content:WaitForChild("Rewards")
+local stageLabel   = content:WaitForChild("Stage")
 
 -- ================= WEBHOOK CORE =================
-local function sendResultWebhook(resultData)
-    print("🧪 [WEBHOOK] Function called")
+local function sendResultWebhook()
+    if not WebhookEnabled then return end
+    if customWebhook == "" or customWebhook == " " then return end
+    if type(s_request) ~= "function" then return end
 
-    if not WebhookEnabled then
-        warn("❌ Webhook disabled")
-        return
-    end
+    -- proxy chống block Delta
+    local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
 
-    if customWebhook == "" then
-        warn("❌ Webhook empty")
-        return
-    end
-
-    if type(s_request) ~= "function" then
-        warn("❌ No HTTP request function")
-        return
-    end
-
-    local embed = {
-        title = "KazeHub Result",
-        description =
-            (resultData.Win and "🏆 VICTORY" or "❌ DEFEAT") ..
-            "\nPlayer: "..lp.Name..
-            "\nStage: "..tostring(resultData.Stage)..
-            "\nGems: +"..tostring(resultData.Gems)..
-            "\nCoins: +"..tostring(resultData.Coins),
-        color = 65280,
-        footer = { text = "KazeHub" }
+    local payload = {
+        content = "KazeHub Match Result",
+        embeds = {{
+            title = (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory"))
+                and "🏆 VICTORY" or "💀 DEFEAT",
+            color = (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory"))
+                and 3066993 or 15158332,
+            description =
+                "👤 Player: **"..lp.Name.."**\n"..
+                "🗺 Stage: **"..stageLabel.Text.."**",
+            fields = {{
+                name = "🎁 Rewards",
+                value = (#rewardFolder:GetChildren() > 0) and "Xem trong game" or "Không có",
+                inline = false
+            }},
+            footer = { text = "KazeHub | Delta X Safe" }
+        }}
     }
 
-    local ok, err = pcall(function()
-        s_request({
-            Url = customWebhook,
-            Method = "POST",
-            Headers = {
-                ["Content-Type"] = "application/json"
-            },
-            Body = HttpService:JSONEncode({
-                username = "KazeHub",
-                embeds = {embed}
+    task.spawn(function()
+        pcall(function()
+            s_request({
+                Url = proxyUrl,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(payload)
             })
-        })
+        end)
     end)
-
-    print("📨 Webhook send result:", ok, err)
 end
 
--- ================= BATTLE END DETECTOR (FIXED) =================
-task.spawn(function()
-    local stats = lp:WaitForChild("leaderstats", 10)
-    if not stats then return end
-
-    local coins = stats:WaitForChild("Coins", 10)
-    local gems = stats:WaitForChild("Gems", 10)
-    if not coins or not gems then return end
-
-    local lastCoins = coins.Value
-    local lastGems = gems.Value
-    local sent = false
-
-    while true do
-        task.wait(1)
-
-        if isPlayerInBattle() then
-            sent = false
-            lastCoins = coins.Value
-            lastGems = gems.Value
-        else
-            if not sent and (coins.Value ~= lastCoins or gems.Value ~= lastGems) then
-                sent = true
-
-                local result = {
-                    Win = true,
-                    Stage = SelectedMap or "Unknown",
-                    Gems = gems.Value - lastGems,
-                    Coins = coins.Value - lastCoins,
-                    Exp = 0,
-                    TotalCoins = coins.Value,
-                    TotalGems = gems.Value
-                }
-
-                print("📨 Sending webhook (battle end)")
-                sendResultWebhook(result)
-            end
-        end
+-- ================= RESULT UI TRIGGER (DELTA SAFE) =================
+local sent = false
+resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
+    if resultUI.Visible then
+        if sent then return end
+        sent = true
+        task.wait(2) -- đợi game update reward
+        sendResultWebhook()
+        print("📨 Webhook sent via Result UI")
+    else
+        sent = false
     end
 end)
+
 
 -- ================= MAIN TAB =================
 local Main = Window:CreateTab("Lobby / Farm", 4483362458)
