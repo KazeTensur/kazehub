@@ -1,4 +1,4 @@
--- ================= KAZEHUB CLEAN FINAL =================
+-- ================= KAZEHUB CLEAN FINAL + BALANCE =================
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
@@ -46,7 +46,6 @@ pcall(function()
     end
 end)
 
-
 -- ================= STATE =================
 local SelectedMode = "Story"
 local SelectedMap = nil
@@ -77,6 +76,7 @@ local function isPlayerInBattle()
     local gui = lp.PlayerGui:FindFirstChild("battle")
     return gui and gui.Enabled
 end
+
 -- ================= UI PATH (RESULT UI) =================
 local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
 local content = resultUI:WaitForChild("Base"):WaitForChild("Content")
@@ -84,8 +84,7 @@ local resultLabel  = content:WaitForChild("Result")
 local rewardFolder = content:WaitForChild("Rewards")
 local stageLabel   = content:WaitForChild("Stage")
 
--- ================= WEBHOOK CORE =================
--- ================= WEBHOOK CORE (DELTA SAFE + CHI TIẾT REWARDS) =================
+-- ================= WEBHOOK CORE (DELTA SAFE + REWARDS + BALANCE) =================
 local function getMatchRewards()
     local rewards = {}
     for _, item in ipairs(rewardFolder:GetChildren()) do
@@ -95,6 +94,14 @@ local function getMatchRewards()
         end
     end
     return #rewards > 0 and table.concat(rewards, "\n") or "Không có phần thưởng"
+end
+
+local function getTotalBalance()
+    local data = lp:FindFirstChild("Data")
+    if not data then return "N/A" end
+    local coins = data:FindFirstChild("Coins")
+    local gems  = data:FindFirstChild("Gems")
+    return string.format("💰 Coins: %s\n💎 Gems: %s", coins and coins.Value or 0, gems and gems.Value or 0)
 end
 
 local function sendResultWebhook()
@@ -115,11 +122,18 @@ local function sendResultWebhook()
             description =
                 "👤 Player: **"..lp.Name.."**\n"..
                 "🗺 Stage: **"..stageLabel.Text.."**",
-            fields = {{
-                name = "🎁 Rewards",
-                value = getMatchRewards(),
-                inline = false
-            }},
+            fields = {
+                {
+                    name = "🎁 Rewards",
+                    value = getMatchRewards(),
+                    inline = false
+                },
+                {
+                    name = "💰 Balance",
+                    value = getTotalBalance(),
+                    inline = false
+                }
+            },
             footer = { text = "KazeHub | Delta X Safe" }
         }}
     }
@@ -136,7 +150,7 @@ local function sendResultWebhook()
     end)
 end
 
--- ================= RESULT UI TRIGGER (DELTA SAFE) =================
+-- ================= RESULT UI TRIGGER =================
 local sent = false
 resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
     if resultUI.Visible then
@@ -204,9 +218,7 @@ Main:CreateToggle({
     end
 })
 
--- =====================================================================
--- =========================== CHALLENGE TAB ===========================
--- =====================================================================
+-- ================= CHALLENGE TAB =================
 local ChallengeTab = Window:CreateTab("Challenges", 4483362458)
 
 local AutoChallengeEnabled = false
@@ -242,14 +254,10 @@ ChallengeTab:CreateDropdown({
 
 local StatusLabel = ChallengeTab:CreateLabel("Status: Waiting...")
 
--- ================= Challenge helpers =================
 local function getLiveChallengeData()
     local ok, data = pcall(function()
         local ui = workspace.Lobby.ChallengeInfo["Semi-Hourly"].Model.Part.SurfaceGui.Base
-        return {
-            Map = ui.MapName.Text,
-            Debuff = ui.Debuff.Text
-        }
+        return {Map = ui.MapName.Text, Debuff = ui.Debuff.Text}
     end)
     return ok and data or {Map = "N/A", Debuff = "N/A"}
 end
@@ -260,11 +268,8 @@ local function joinChallenge()
     local data = getLiveChallengeData()
 
     if not hrp or not touch or data.Map == "N/A" then return end
-
     for _, skip in ipairs(IgnoredDebuffs) do
-        if data.Debuff:find(skip) then
-            return
-        end
+        if data.Debuff:find(skip) then return end
     end
 
     if AutoEquipTeam then
@@ -277,10 +282,7 @@ local function joinChallenge()
     firetouchinterest(hrp, touch, 1)
 
     task.wait(0.6)
-    RemoteEvent:FireServer("room_select", data.Map, 7, {
-        ChallengeType = "Semi-Hourly",
-        Debuff = data.Debuff
-    })
+    RemoteEvent:FireServer("room_select", data.Map, 7, {ChallengeType="Semi-Hourly", Debuff=data.Debuff})
     task.wait(0.3)
     RemoteEvent:FireServer("room_start")
 end
@@ -311,21 +313,15 @@ local GameplayTab = Window:CreateTab("Gameplay", 4483362458)
 
 local SelectedGameplay = "x10 Summon Banner"
 local AutoSpinEnabled = false
-local SpinDelay = 1.5 -- giây mặc định
+local SpinDelay = 1.5
 
 GameplayTab:CreateDropdown({
     Name = "Select Action",
-    Options = {
-        "x10 Summon Banner",
-        "Christmas Standard Spin",
-        "Christmas Advanced Spin"
-    },
+    Options = {"x10 Summon Banner","Christmas Standard Spin","Christmas Advanced Spin"},
     CurrentOption = {"x10 Summon Banner"},
     MultipleOptions = false,
     Flag = "GameplayAction",
-    Callback = function(opt)
-        SelectedGameplay = opt[1]
-    end
+    Callback = function(opt) SelectedGameplay = opt[1] end
 })
 
 GameplayTab:CreateInput({
@@ -337,34 +333,20 @@ GameplayTab:CreateInput({
     Callback = function(txt)
         local v = tonumber(txt)
         if v and v > 0 then
-            SpinDelay = math.clamp(v, 0.3, 60) -- giới hạn an toàn
+            SpinDelay = math.clamp(v, 0.3, 60)
         else
-            Rayfield:Notify({
-                Title = "Invalid Delay",
-                Content = "Delay phải là số > 0",
-                Duration = 2
-            })
+            Rayfield:Notify({Title="Invalid Delay",Content="Delay phải là số > 0",Duration=2})
         end
     end
 })
 
 local function doGameplayAction()
     if SelectedGameplay == "x10 Summon Banner" then
-        RemoteEvent:FireServer(
-            "summon_roll",
-            "Standard",
-            10
-        )
-
+        RemoteEvent:FireServer("summon_roll","Standard",10)
     elseif SelectedGameplay == "Christmas Standard Spin" then
-        RemoteEvent:FireServer(
-            "spinner_standard"
-        )
-
+        RemoteEvent:FireServer("spinner_standard")
     elseif SelectedGameplay == "Christmas Advanced Spin" then
-        RemoteEvent:FireServer(
-            "spinner_advanced"
-        )
+        RemoteEvent:FireServer("spinner_advanced")
     end
 end
 
@@ -384,7 +366,6 @@ GameplayTab:CreateToggle({
         end
     end
 })
-
 
 -- ================= WEBHOOK TAB =================
 local WebTab = Window:CreateTab("Webhook", 4483362458)
@@ -415,61 +396,34 @@ WebTab:CreateButton({
     Name = "Test Webhook",
     Callback = function()
         if customWebhook == "" then
-            Rayfield:Notify({
-                Title = "Webhook Error",
-                Content = "Webhook URL trống",
-                Duration = 2
-            })
+            Rayfield:Notify({Title="Webhook Error",Content="Webhook URL trống",Duration=2})
             return
         end
-
         if type(s_request) ~= "function" then
-            Rayfield:Notify({
-                Title = "HTTP Error",
-                Content = "Executor không hỗ trợ HTTP Request",
-                Duration = 3
-            })
+            Rayfield:Notify({Title="HTTP Error",Content="Executor không hỗ trợ HTTP Request",Duration=3})
             return
         end
-
         local testEmbed = {
             title = "✅ KazeHub Webhook Test",
-            description = 
-                "Webhook hoạt động thành công!\n\n" ..
-                "👤 Player: **"..lp.Name.."**\n" ..
-                "⏱ Time: "..DateTime.now():FormatLocalTime("LLL", "en-us"),
+            description = "Webhook hoạt động thành công!\n\n👤 Player: **"..lp.Name.."**\n⏱ Time: "..DateTime.now():FormatLocalTime("LLL","en-us"),
             color = 3447003,
             footer = { text = "KazeHub Test" }
         }
-
         local ok, err = pcall(function()
             s_request({
                 Url = customWebhook,
                 Method = "POST",
                 Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode({
-                    username = "KazeHub",
-                    embeds = {testEmbed}
-                })
+                Body = HttpService:JSONEncode({username="KazeHub",embeds={testEmbed}})
             })
         end)
-
-        if ok then
-            Rayfield:Notify({
-                Title = "Success",
-                Content = "Test webhook sent!",
-                Duration = 2
-            })
-        else
-            Rayfield:Notify({
-                Title = "Failed",
-                Content = tostring(err),
-                Duration = 2
-            })
-        end
+        Rayfield:Notify({
+            Title = ok and "Success" or "Failed",
+            Content = ok and "Test webhook sent!" or tostring(err),
+            Duration = 2
+        })
     end
 })
-
 
 -- ================= MISC TAB =================
 local Misc = Window:CreateTab("Misc", 4483362458)
@@ -524,4 +478,4 @@ Misc:CreateButton({
 })
 
 Rayfield:LoadConfiguration()
-print("✅ KAZEHUB CLEAN FINAL LOADED")
+print("✅ KAZEHUB CLEAN FINAL + BALANCE LOADED")
