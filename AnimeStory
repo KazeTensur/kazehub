@@ -180,6 +180,109 @@ Main:CreateToggle({
     end
 })
 
+-- =====================================================================
+-- =========================== CHALLENGE TAB ===========================
+-- =====================================================================
+local ChallengeTab = Window:CreateTab("Challenges", 4483362458)
+
+local AutoChallengeEnabled = false
+local AutoEquipTeam = false
+local IgnoredDebuffs = {}
+
+ChallengeTab:CreateLabel("⚠️ Requires saved team in SLOT 1")
+
+ChallengeTab:CreateToggle({
+    Name = "Auto Equip Team (Slot 1)",
+    CurrentValue = false,
+    Flag = "AutoEquipTeam",
+    Callback = function(v)
+        AutoEquipTeam = v
+    end
+})
+
+ChallengeTab:CreateDropdown({
+    Name = "Ignore Debuffs",
+    Options = {
+        "Double Stats",
+        "Weakened Units",
+        "Burn Enemies",
+        "Poison Enemies"
+    },
+    MultipleOptions = true,
+    CurrentOption = {},
+    Flag = "IgnoredDebuffs",
+    Callback = function(opts)
+        IgnoredDebuffs = opts
+    end
+})
+
+local StatusLabel = ChallengeTab:CreateLabel("Status: Waiting...")
+
+-- ================= Challenge helpers =================
+local function getLiveChallengeData()
+    local ok, data = pcall(function()
+        local ui = workspace.Lobby.ChallengeInfo["Semi-Hourly"].Model.Part.SurfaceGui.Base
+        return {
+            Map = ui.MapName.Text,
+            Debuff = ui.Debuff.Text
+        }
+    end)
+    return ok and data or {Map = "N/A", Debuff = "N/A"}
+end
+
+local function joinChallenge()
+    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    local touch = workspace.Rooms.challenges.Model.Touch
+    local data = getLiveChallengeData()
+
+    if not hrp or not touch or data.Map == "N/A" then return end
+
+    for _, skip in ipairs(IgnoredDebuffs) do
+        if data.Debuff:find(skip) then
+            return
+        end
+    end
+
+    if AutoEquipTeam then
+        RemoteEvent:FireServer("equip_team", 1)
+        task.wait(1)
+    end
+
+    hrp.CFrame = touch.CFrame * CFrame.new(0, 2, 0)
+    firetouchinterest(hrp, touch, 0)
+    firetouchinterest(hrp, touch, 1)
+
+    task.wait(0.6)
+    RemoteEvent:FireServer("room_select", data.Map, 7, {
+        ChallengeType = "Semi-Hourly",
+        Debuff = data.Debuff
+    })
+    task.wait(0.3)
+    RemoteEvent:FireServer("room_start")
+end
+
+ChallengeTab:CreateToggle({
+    Name = "Smart Auto Challenge",
+    CurrentValue = false,
+    Flag = "AutoChallenge",
+    Callback = function(v)
+        AutoChallengeEnabled = v
+        if v then
+            task.spawn(function()
+                while AutoChallengeEnabled do
+                    if not isPlayerInBattle() then
+                        local d = getLiveChallengeData()
+                        StatusLabel:Set("Map: " .. d.Map .. " | " .. d.Debuff)
+                        joinChallenge()
+                    end
+                    task.wait(15)
+                end
+            end)
+        end
+    end
+})
+
+
 -- ================= WEBHOOK TAB =================
 local WebTab = Window:CreateTab("Webhook", 4483362458)
 
