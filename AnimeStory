@@ -78,22 +78,34 @@ local function isPlayerInBattle()
     return battleGui and battleGui.Enabled or false
 end
 
--- HÀM QUÉT REWARD DỰA TRÊN ẢNH EXPLORER BẠN CUNG CẤP
+-- HÀM QUÉT REWARD CẢI TIẾN - QUÉT SÂU & TÌM SỐ
 local function getMatchRewards()
     local rewards = {}
     pcall(function()
-        -- Theo ảnh: Content -> Rewards
         local rewardsFolder = lp.PlayerGui.battle.Result.Base.Content:FindFirstChild("Rewards")
         
         if rewardsFolder then
             for _, item in ipairs(rewardsFolder:GetChildren()) do
-                -- Lọc bỏ các UI Layout (UICorner, UIGradient, v.v.)
+                -- Loại bỏ các thành phần UI hệ thống (UICorner, Layout, v.v.)
                 if item:IsA("Frame") or item:IsA("ImageLabel") then
-                    -- Tìm TextLabel chứa số lượng
-                    local amountLabel = item:FindFirstChildWhichIsA("TextLabel", true) 
-                    local amountText = amountLabel and amountLabel.Text or "1"
+                    local itemName = item.Name
+                    local itemAmount = "0"
                     
-                    table.insert(rewards, "📦 " .. item.Name .. ": x" .. amountText)
+                    -- Quét mọi vật thể con bên trong để tìm Label có chứa số (Số lượng quà)
+                    for _, v in ipairs(item:GetDescendants()) do
+                        if v:IsA("TextLabel") then
+                            -- Nếu Text có chứa số (ví dụ "x100" hoặc "50")
+                            if v.Text:match("%d") then
+                                itemAmount = v.Text
+                                break
+                            end
+                        end
+                    end
+                    
+                    -- Nếu không tìm thấy số, mặc định là x1 (tránh hiện 0)
+                    if itemAmount == "0" then itemAmount = "x1" end
+                    
+                    table.insert(rewards, "📦 **" .. itemName .. "**: " .. itemAmount)
                 end
             end
         end
@@ -102,7 +114,7 @@ local function getMatchRewards()
     if #rewards > 0 then
         return table.concat(rewards, "\n> ")
     else
-        return "No rewards found"
+        return "No rewards found (Victory without drops)"
     end
 end
 
@@ -293,7 +305,7 @@ local function sendDiscord()
     end)
 end
 
--- ================= AUTO TRIGGER (FIXED VISIBLE ERROR) =================
+-- ================= AUTO TRIGGER =================
 local sent = false
 task.spawn(function()
     while true do
@@ -303,13 +315,12 @@ task.spawn(function()
         
         if resultUI then
             local isVisible = false
-            -- Dùng pcall để check tránh lỗi "Visible is not a member of ScreenGui"
             pcall(function() isVisible = resultUI.Visible end)
 
             if isVisible then
                 if not sent then
                     sent = true
-                    task.wait(4) -- Đợi 4 giây để chắc chắn quà Story hiện đầy đủ
+                    task.wait(5) -- Đợi 5 giây để Story Mode load quà xong hoàn toàn
                     sendDiscord()
                 end
             else
