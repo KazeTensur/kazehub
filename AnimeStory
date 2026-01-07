@@ -282,6 +282,85 @@ ChallengeTab:CreateToggle({
     end
 })
 
+-- ================= GAMEPLAY TAB =================
+local GameplayTab = Window:CreateTab("Gameplay", 4483362458)
+
+local SelectedGameplay = "x10 Summon Banner"
+local AutoSpinEnabled = false
+local SpinDelay = 1.5 -- giây mặc định
+
+GameplayTab:CreateDropdown({
+    Name = "Select Action",
+    Options = {
+        "x10 Summon Banner",
+        "Christmas Standard Spin",
+        "Christmas Advanced Spin"
+    },
+    CurrentOption = {"x10 Summon Banner"},
+    MultipleOptions = false,
+    Flag = "GameplayAction",
+    Callback = function(opt)
+        SelectedGameplay = opt[1]
+    end
+})
+
+GameplayTab:CreateInput({
+    Name = "Spin Delay (seconds)",
+    PlaceholderText = "VD: 1.5",
+    CurrentValue = tostring(SpinDelay),
+    Flag = "SpinDelayInput",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(txt)
+        local v = tonumber(txt)
+        if v and v > 0 then
+            SpinDelay = math.clamp(v, 0.3, 60) -- giới hạn an toàn
+        else
+            Rayfield:Notify({
+                Title = "Invalid Delay",
+                Content = "Delay phải là số > 0",
+                Duration = 2
+            })
+        end
+    end
+})
+
+local function doGameplayAction()
+    if SelectedGameplay == "x10 Summon Banner" then
+        RemoteEvent:FireServer(
+            "summon_roll",
+            "Standard",
+            10
+        )
+
+    elseif SelectedGameplay == "Christmas Standard Spin" then
+        RemoteEvent:FireServer(
+            "spinner_standard"
+        )
+
+    elseif SelectedGameplay == "Christmas Advanced Spin" then
+        RemoteEvent:FireServer(
+            "spinner_advanced"
+        )
+    end
+end
+
+GameplayTab:CreateToggle({
+    Name = "Auto Spin / Summon",
+    CurrentValue = false,
+    Flag = "AutoGameplay",
+    Callback = function(v)
+        AutoSpinEnabled = v
+        if v then
+            task.spawn(function()
+                while AutoSpinEnabled do
+                    doGameplayAction()
+                    task.wait(SpinDelay)
+                end
+            end)
+        end
+    end
+})
+
 
 -- ================= WEBHOOK TAB =================
 local WebTab = Window:CreateTab("Webhook", 4483362458)
