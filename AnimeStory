@@ -1,4 +1,4 @@
--- ================= KAZEHUB FINAL BEAUTIFIED VERSION =================
+-- ================= KAZEHUB FINAL FIXED REWARD VERSION =================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -78,17 +78,28 @@ local function isPlayerInBattle()
     return battleGui and battleGui.Enabled or false
 end
 
+-- HÀM QUÉT REWARD MỚI (FIXED)
 local function getMatchRewards()
-    local rewards = ""
+    local rewards = {}
     pcall(function()
-        local rewardFolder = lp.PlayerGui.battle.Result.Base.Content.Rewards.List
-        for _, item in ipairs(rewardFolder:GetChildren()) do
-            if item:IsA("Frame") and item:FindFirstChild("Amount") then
-                rewards = rewards .. item.Name .. ": " .. item.Amount.Text .. " | "
+        local rewardList = lp.PlayerGui.battle.Result.Base.Content.Rewards:FindFirstChild("List")
+        if rewardList then
+            for _, item in ipairs(rewardList:GetChildren()) do
+                -- Chỉ lấy Frame/ImageLabel và bỏ qua các UI Layout
+                if (item:IsA("Frame") or item:IsA("ImageLabel")) and item.Name ~= "UIListLayout" then
+                    local name = item.Name
+                    local amount = item:FindFirstChild("Amount") and item.Amount.Text or "1"
+                    table.insert(rewards, "📦 " .. name .. ": x" .. amount)
+                end
             end
         end
     end)
-    return rewards ~= "" and rewards or "No rewards found"
+    
+    if #rewards > 0 then
+        return table.concat(rewards, "\n> ")
+    else
+        return "No items dropped"
+    end
 end
 
 -- ================= FARM ACTIONS =================
@@ -145,7 +156,7 @@ local function joinChallengeRoom()
     end
 end
 
--- ================= UI TAB 1 — LOBBY / FARM =================
+-- ================= UI TABS =================
 local Main = Window:CreateTab("Lobby / Farm", 4483362458)
 local MapDropdown
 
@@ -191,7 +202,6 @@ Main:CreateToggle({
     end
 })
 
--- ================= UI TAB 2 — CHALLENGES =================
 local ChallengeTab = Window:CreateTab("Challenges", 4483362458)
 ChallengeTab:CreateSection("Team Management")
 ChallengeTab:CreateToggle({ Name = "Auto Equip Challenge Team", CurrentValue = false, Callback = function(val) AutoEquipTeam = val end })
@@ -216,13 +226,11 @@ ChallengeTab:CreateToggle({ Name = "Smart Auto Challenge", CurrentValue = false,
     end
 end })
 
--- ================= UI TAB 3 — WEBHOOK =================
 local Tab2 = Window:CreateTab("Webhook", 4483362458)
 Tab2:CreateToggle({ Name = "Enable Webhook", CurrentValue = true, Callback = function(v) WebhookEnabled = v end })
 Tab2:CreateInput({ Name = "Link Webhook", CurrentValue = customWebhook, PlaceholderText = "Webhook link...", Callback = function(txt) customWebhook = txt end })
 Tab2:CreateButton({ Name = "Save Webhook", Callback = function() writefile("custom_webhook.txt", customWebhook) end })
 
--- ================= UI TAB 4 — MISC =================
 local MiscTab = Window:CreateTab("Misc", 4483362458)
 MiscTab:CreateToggle({ Name = "Anti-AFK", CurrentValue = false, Callback = function(Value)
     if Value then _G.AFK = lp.Idled:Connect(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new(0,0)) end)
@@ -230,23 +238,22 @@ MiscTab:CreateToggle({ Name = "Anti-AFK", CurrentValue = false, Callback = funct
 end })
 MiscTab:CreateButton({ Name = "Rejoin", Callback = function() TeleportService:Teleport(game.PlaceId, lp) end })
 
--- ================= BEAUTIFIED WEBHOOK LOGIC =================
+-- ================= FINAL BEAUTIFIED WEBHOOK LOGIC =================
 local function sendDiscord()
     if not WebhookEnabled or customWebhook == "" or customWebhook == " " then return end
-
     local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
     
-    local success, resultUI = pcall(function() return lp.PlayerGui.battle.Result.Base.Content end)
+    local success, content = pcall(function() return lp.PlayerGui.battle.Result.Base.Content end)
     if not success then return end
 
-    local rawResult = resultUI.Result.Text
+    local rawResult = content.Result.Text
     local isWin = rawResult:lower():find("win") or rawResult:lower():find("victory")
     
     local final_payload = {
         ["embeds"] = {{
             ["title"] = isWin and "🏆 " .. rawResult:upper() or "💀 " .. rawResult:upper(),
             ["color"] = isWin and 524287 or 16711680,
-            ["description"] = "### " .. resultUI.Stage.Text,
+            ["description"] = "### " .. content.Stage.Text,
             ["fields"] = {
                 {
                     ["name"] = "📊 **Balance**",
@@ -260,12 +267,10 @@ local function sendDiscord()
                 }
             },
             ["author"] = {
-                ["name"] = "KazeHub Match Result: " .. lp.Name,
+                ["name"] = "KazeHub Result: " .. lp.Name,
                 ["icon_url"] = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. lp.UserId .. "&width=420&height=420&format=png"
             },
-            ["footer"] = { 
-                ["text"] = "Time: " .. os.date("%X") .. " | KazeHub Optimized" 
-            }
+            ["footer"] = { ["text"] = "Time: " .. os.date("%X") .. " | KazeHub" }
         }}
     }
 
@@ -281,22 +286,19 @@ local function sendDiscord()
     end)
 end
 
--- TRIGGER WEBHOOK (FIXED)
 local sent = false
 task.spawn(function()
     while true do
         task.wait(1)
         local battleGui = lp.PlayerGui:FindFirstChild("battle")
         local resultUI = battleGui and battleGui:FindFirstChild("Result")
-        
         if resultUI then
             local isVisible = false
             pcall(function() isVisible = resultUI.Visible end)
-
             if isVisible then
                 if not sent then
                     sent = true
-                    task.wait(2)
+                    task.wait(3) -- Tăng thời gian đợi phần thưởng load
                     sendDiscord()
                 end
             else
@@ -307,4 +309,3 @@ task.spawn(function()
 end)
 
 Rayfield:LoadConfiguration()
-print("✅ KazeHub Fully Loaded with Beautified Webhook")
