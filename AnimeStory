@@ -104,6 +104,7 @@ Main:CreateDropdown({
     Name = "1. Select Mode",
     Options = {"Story","Raid"},
     CurrentOption = {"Story"},
+    Flag = "Mode",
     Callback = function(opt)
         SelectedMode = opt[1]
         MapDropdown:Refresh(SelectedMode == "Raid" and RaidMaps or getSortedMaps(), true)
@@ -114,6 +115,7 @@ MapDropdown = Main:CreateDropdown({
     Name = "2. Select Map",
     Options = getSortedMaps(),
     CurrentOption = {},
+    Flag = "Map",
     Callback = function(opt) SelectedMap = opt[1] end
 })
 
@@ -121,6 +123,7 @@ Main:CreateDropdown({
     Name = "3. Select Act",
     Options = {"1","2","3","4","5","6","7","8","9","10"},
     CurrentOption = {"1"},
+    Flag = "Act",
     Callback = function(opt) SelectedAct = opt[1] end
 })
 
@@ -128,12 +131,14 @@ Main:CreateDropdown({
     Name = "4. Difficulty",
     Options = {"Normal","Hard","Nightmare"},
     CurrentOption = {"Normal"},
+    Flag = "Difficulty",
     Callback = function(opt) SelectedDifficulty = opt[1] end
 })
 
 Main:CreateToggle({
     Name = "Auto Join & Start",
     CurrentValue = false,
+    Flag = "AutoJoin&Start",
     Callback = function(v)
         if v and not isPlayerInBattle() then runAutoJoin() end
     end
@@ -149,6 +154,7 @@ ChallengeTab:CreateLabel("⚠️ Requires saved team in SLOT 1")
 ChallengeTab:CreateToggle({
     Name = "Auto Equip Team (Slot 1)",
     CurrentValue = false,
+    Flag = "AutoEquipTeam",
     Callback = function(v) AutoEquipTeam = v end
 })
 
@@ -211,6 +217,7 @@ end
 ChallengeTab:CreateToggle({
     Name = "Smart Auto Challenge",
     CurrentValue = false,
+    Flag = "AutoChallenge",
     Callback = function(v)
         AutoChallengeEnabled = v
         if v then
@@ -258,6 +265,7 @@ local MiscTab = Window:CreateTab("Misc", 4483362458)
 MiscTab:CreateToggle({
     Name = "Anti-AFK",
     CurrentValue = false,
+    Flag = "AntiAFK",
     Callback = function(v)
         if v then
             _G.AFK = lp.Idled:Connect(function()
@@ -272,6 +280,7 @@ MiscTab:CreateToggle({
 
 MiscTab:CreateButton({
     Name = "Rejoin",
+    Flag = "Rejoin",
     Callback = function()
         TeleportService:Teleport(game.PlaceId, lp)
     end
