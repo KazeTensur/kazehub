@@ -209,52 +209,42 @@ end
 
 -- ================= SEND DISCORD (SAFE) =================
 local function sendDiscord()
-    if not WebhookEnabled or customWebhook == "" then return end
+if not WebhookEnabled or customWebhook == "" then return end
 
-    task.wait(1.5)
+task.wait(1)
 
-    local resultText = resultLabel.Text or ""
-    local isWin = resultText:lower():find("win") or resultText:lower():find("victory")
+local resultText = resultLabel.Text or ""
+local isWin = resultText:lower():find("win") or resultText:lower():find("victory")
 
-    local payload = {
-        content = " ", -- 🔴 BẮT BUỘC (Discord-safe)
-        username = "KazeHub | Match Result",
-        embeds = {{
-            title = isWin and "🏆 VICTORY" or "💀 DEFEAT",
-            color = isWin and 0x2ecc71 or 0xe74c3c,
-            description =
-                "👤 Player: `" .. lp.Name .. "`\n" ..
-                "🗺 Stage: `" .. stageLabel.Text .. "`",
-            fields = {
-                { name = "🎁 Rewards", value = getMatchRewards(), inline = false },
-                { name = "💰 Balance", value = getTotalBalance(), inline = false },
-            },
-            footer = { text = "KazeHub | Delta Executor" },
-            timestamp = os.date("!%Y-%m-%dT%H:%M:%S.000Z")
-        }}
-    }
+local payload = {
+    content = "KazeHub Match Result",
+    embeds = {{
+        title = isWin and "🏆 VICTORY" or "💀 DEFEAT",
+        color = isWin and 0x2ecc71 or 0xe74c3c,
+        description =
+            "👤 Player: **" .. lp.Name .. "**\n" ..
+            "🗺 Stage: **" .. stageLabel.Text .. "**",
+        fields = {
+            { name = "🎁 Rewards", value = getMatchRewards(), inline = false },
+            { name = "💰 Balance", value = getTotalBalance(), inline = false },
+        },
+        footer = { text = "KazeHub | Delta SAFE" }
+    }}
+}
 
-    for i = 1, 3 do
-        local ok, res = pcall(function()
-            return http_request({
-                Url = customWebhook,
-                Method = "POST",
-                Headers = {
-                    ["Content-Type"] = "application/json",
-                    ["User-Agent"] = "KazeHub-Delta"
-                },
-                Body = HttpService:JSONEncode(payload)
-            })
-        end)
+local success, err = pcall(function()
+    HttpService:PostAsync(
+        customWebhook,
+        HttpService:JSONEncode(payload),
+        Enum.HttpContentType.ApplicationJson
+    )
+end)
 
-        if ok and res then
-            print("✅ Discord webhook sent (try " .. i .. ")")
-            return
-        end
-        task.wait(1)
-    end
-
-    warn("❌ Discord webhook failed")
+if success then
+    print("✅ Discord webhook SENT (HttpService)")
+else
+    warn("❌ Webhook FAILED:", err)
+end
 end
 
 -- ================= TRIGGER (ANTI DUPLICATE) =================
@@ -302,10 +292,10 @@ Tab2:CreateInput({
 Tab2:CreateButton({
     Name = "Test Webhook",
     Callback = function()
-        if not WebhookEnabled or customWebhook == "" then
+        if customWebhook == "" then
             Rayfield:Notify({
                 Title = "Webhook",
-                Content = "⚠️ Webhook đang TẮT hoặc trống",
+                Content = "❌ Chưa nhập webhook",
                 Duration = 2.5,
                 Image = 4483362458,
             })
@@ -313,32 +303,20 @@ Tab2:CreateButton({
         end
 
         local payload = {
-            content = " ",
-            username = "KazeHub | Test",
-            embeds = {{
-                title = "✅ DISCORD SAFE TEST",
-                description = "Webhook hoạt động ổn định trên Delta",
-                color = 0x2ecc71,
-                footer = { text = "KazeHub System" },
-                timestamp = os.date("!%Y-%m-%dT%H:%M:%S.000Z")
-            }}
+            content = "✅ KazeHub Test Webhook (Delta SAFE)",
         }
 
-        local ok = pcall(function()
-            http_request({
-                Url = customWebhook,
-                Method = "POST",
-                Headers = {
-                    ["Content-Type"] = "application/json",
-                    ["User-Agent"] = "KazeHub-Delta"
-                },
-                Body = HttpService:JSONEncode(payload)
-            })
+        local ok, err = pcall(function()
+            HttpService:PostAsync(
+                customWebhook,
+                HttpService:JSONEncode(payload),
+                Enum.HttpContentType.ApplicationJson
+            )
         end)
 
         Rayfield:Notify({
             Title = ok and "Webhook OK" or "Webhook FAIL",
-            Content = ok and "✅ Discord đã nhận" or "❌ Không gửi được",
+            Content = ok and "Discord đã nhận!" or tostring(err),
             Duration = 2.5,
             Image = 4483362458,
         })
