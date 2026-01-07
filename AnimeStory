@@ -1,4 +1,4 @@
--- ================= KAZEHUB CLEAN VERSION (NO SMART STORY) =================
+-- ================= KAZEHUB FINAL BEAUTIFIED VERSION =================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -76,6 +76,19 @@ end
 local function isPlayerInBattle()
     local battleGui = lp.PlayerGui:FindFirstChild("battle")
     return battleGui and battleGui.Enabled or false
+end
+
+local function getMatchRewards()
+    local rewards = ""
+    pcall(function()
+        local rewardFolder = lp.PlayerGui.battle.Result.Base.Content.Rewards.List
+        for _, item in ipairs(rewardFolder:GetChildren()) do
+            if item:IsA("Frame") and item:FindFirstChild("Amount") then
+                rewards = rewards .. item.Name .. ": " .. item.Amount.Text .. " | "
+            end
+        end
+    end)
+    return rewards ~= "" and rewards or "No rewards found"
 end
 
 -- ================= FARM ACTIONS =================
@@ -217,31 +230,81 @@ MiscTab:CreateToggle({ Name = "Anti-AFK", CurrentValue = false, Callback = funct
 end })
 MiscTab:CreateButton({ Name = "Rejoin", Callback = function() TeleportService:Teleport(game.PlaceId, lp) end })
 
--- ================= WEBHOOK LOGIC =================
+-- ================= BEAUTIFIED WEBHOOK LOGIC =================
+local function sendDiscord()
+    if not WebhookEnabled or customWebhook == "" or customWebhook == " " then return end
+
+    local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
+    
+    local success, resultUI = pcall(function() return lp.PlayerGui.battle.Result.Base.Content end)
+    if not success then return end
+
+    local rawResult = resultUI.Result.Text
+    local isWin = rawResult:lower():find("win") or rawResult:lower():find("victory")
+    
+    local final_payload = {
+        ["embeds"] = {{
+            ["title"] = isWin and "🏆 " .. rawResult:upper() or "💀 " .. rawResult:upper(),
+            ["color"] = isWin and 524287 or 16711680,
+            ["description"] = "### " .. resultUI.Stage.Text,
+            ["fields"] = {
+                {
+                    ["name"] = "📊 **Balance**",
+                    ["value"] = "```" .. getTotalBalance():gsub("💰 ", ""):gsub("💎 ", "") .. "```",
+                    ["inline"] = false
+                },
+                {
+                    ["name"] = "🎁 **Rewards**",
+                    ["value"] = "> " .. getMatchRewards(),
+                    ["inline"] = false
+                }
+            },
+            ["author"] = {
+                ["name"] = "KazeHub Match Result: " .. lp.Name,
+                ["icon_url"] = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. lp.UserId .. "&width=420&height=420&format=png"
+            },
+            ["footer"] = { 
+                ["text"] = "Time: " .. os.date("%X") .. " | KazeHub Optimized" 
+            }
+        }}
+    }
+
+    task.spawn(function()
+        pcall(function()
+            s_request({
+                Url = proxyUrl,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(final_payload)
+            })
+        end)
+    end)
+end
+
+-- TRIGGER WEBHOOK (FIXED)
+local sent = false
 task.spawn(function()
     while true do
-        task.wait(2)
+        task.wait(1)
         local battleGui = lp.PlayerGui:FindFirstChild("battle")
         local resultUI = battleGui and battleGui:FindFirstChild("Result")
+        
+        if resultUI then
+            local isVisible = false
+            pcall(function() isVisible = resultUI.Visible end)
 
-        if resultUI and resultUI.Visible then
-            if WebhookEnabled and customWebhook ~= "" then
-                pcall(function()
-                    s_request({
-                        Url = customWebhook:gsub("discord.com", "webhook.lewisakura.moe"),
-                        Method = "POST",
-                        Headers = {["Content-Type"] = "application/json"},
-                        Body = HttpService:JSONEncode({["embeds"] = {{
-                            ["title"] = resultUI.Base.Content.Result.Text,
-                            ["description"] = "Stage: " .. resultUI.Base.Content.Stage.Text,
-                            ["fields"] = {{["name"] = "Balance", ["value"] = getTotalBalance()}}
-                        }}})
-                    })
-                end)
+            if isVisible then
+                if not sent then
+                    sent = true
+                    task.wait(2)
+                    sendDiscord()
+                end
+            else
+                sent = false
             end
-            repeat task.wait(1) until not resultUI.Visible
         end
     end
 end)
 
 Rayfield:LoadConfiguration()
+print("✅ KazeHub Fully Loaded with Beautified Webhook")
