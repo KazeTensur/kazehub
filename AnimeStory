@@ -31,7 +31,21 @@ local RemoteEvent = game:GetService("ReplicatedStorage")
 
 local WorldsFolder = workspace:WaitForChild("Worlds", 10)
 
-local s_request = (syn and syn.request) or (http and http.request) or http_request or request
+local s_request
+pcall(function()
+    s_request = http_request
+end)
+pcall(function()
+    if not s_request then
+        s_request = request
+    end
+end)
+pcall(function()
+    if not s_request and http then
+        s_request = http.request
+    end
+end)
+
 
 -- ================= STATE =================
 local SelectedMode = "Story"
@@ -66,40 +80,50 @@ end
 
 -- ================= WEBHOOK CORE =================
 local function sendResultWebhook(resultData)
-    print("🧪 sendResultWebhook CALLED")
-    if not WebhookEnabled then return end
-    if customWebhook == "" then return end
-    if type(s_request) ~= "function" then return end
+    print("🧪 [WEBHOOK] Function called")
+
+    if not WebhookEnabled then
+        warn("❌ Webhook disabled")
+        return
+    end
+
+    if customWebhook == "" then
+        warn("❌ Webhook empty")
+        return
+    end
+
+    if type(s_request) ~= "function" then
+        warn("❌ No HTTP request function")
+        return
+    end
 
     local embed = {
-        title = "KazeHub Match Result",
+        title = "KazeHub Result",
         description =
-            (resultData.Win and "🏆 **VICTORY**" or "❌ **DEFEAT**") ..
-            "\n\n👤 **Player:** "..lp.Name..
-            "\n🗺️ **Stage:** "..tostring(resultData.Stage)..
-            "\n\n🎁 **Rewards**"..
-            "\n• Gems: x"..tostring(resultData.Gems)..
-            "\n• Coins: x"..tostring(resultData.Coins)..
-            "\n• Exp: x"..tostring(resultData.Exp)..
-            "\n\n💰 **Balance**"..
-            "\n💲 Coins: "..tostring(resultData.TotalCoins)..
-            "\n💎 Gems: "..tostring(resultData.TotalGems),
-        color = resultData.Win and 65280 or 16711680,
-        footer = { text = "KazeHub | Delta X Fix" },
-        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+            (resultData.Win and "🏆 VICTORY" or "❌ DEFEAT") ..
+            "\nPlayer: "..lp.Name..
+            "\nStage: "..tostring(resultData.Stage)..
+            "\nGems: +"..tostring(resultData.Gems)..
+            "\nCoins: +"..tostring(resultData.Coins),
+        color = 65280,
+        footer = { text = "KazeHub" }
     }
 
-    pcall(function()
+    local ok, err = pcall(function()
         s_request({
             Url = customWebhook,
             Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
             Body = HttpService:JSONEncode({
                 username = "KazeHub",
                 embeds = {embed}
             })
         })
     end)
+
+    print("📨 Webhook send result:", ok, err)
 end
 
 -- ================= BATTLE END DETECTOR (FIXED) =================
