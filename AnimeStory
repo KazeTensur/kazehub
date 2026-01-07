@@ -122,6 +122,8 @@ task.spawn(function()
             }
 
             sendResultWebhook(result)
+                    print("📨 Sending webhook:", customWebhook)
+
         end
     end)
 end)
@@ -386,6 +388,66 @@ WebTab:CreateButton({
         Rayfield:Notify({Title="Saved",Content="Webhook saved",Duration=2})
     end
 })
+
+WebTab:CreateButton({
+    Name = "Test Webhook",
+    Callback = function()
+        if customWebhook == "" then
+            Rayfield:Notify({
+                Title = "Webhook Error",
+                Content = "Webhook URL trống",
+                Duration = 2
+            })
+            return
+        end
+
+        if type(s_request) ~= "function" then
+            Rayfield:Notify({
+                Title = "HTTP Error",
+                Content = "Executor không hỗ trợ HTTP Request",
+                Duration = 3
+            })
+            return
+        end
+
+        local testEmbed = {
+            title = "✅ KazeHub Webhook Test",
+            description = 
+                "Webhook hoạt động thành công!\n\n" ..
+                "👤 Player: **"..lp.Name.."**\n" ..
+                "⏱ Time: "..DateTime.now():FormatLocalTime("LLL", "en-us"),
+            color = 3447003,
+            footer = { text = "KazeHub Test" }
+        }
+
+        local ok, err = pcall(function()
+            s_request({
+                Url = customWebhook,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode({
+                    username = "KazeHub",
+                    embeds = {testEmbed}
+                })
+            })
+        end)
+
+        if ok then
+            Rayfield:Notify({
+                Title = "Success",
+                Content = "Test webhook sent!",
+                Duration = 2
+            })
+        else
+            Rayfield:Notify({
+                Title = "Failed",
+                Content = tostring(err),
+                Duration = 2
+            })
+        end
+    end
+})
+
 
 -- ================= MISC TAB =================
 local Misc = Window:CreateTab("Misc", 4483362458)
