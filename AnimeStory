@@ -78,7 +78,7 @@ local function isPlayerInBattle()
     return battleGui and battleGui.Enabled or false
 end
 
--- HÀM QUÉT REWARD CẢI TIẾN - QUÉT SÂU & TÌM SỐ
+-- HÀM QUÉT REWARD CẢI TIẾN - GIỮ ĐỊNH DẠNG ĐẸP
 local function getMatchRewards()
     local rewards = {}
     pcall(function()
@@ -86,35 +86,33 @@ local function getMatchRewards()
         
         if rewardsFolder then
             for _, item in ipairs(rewardsFolder:GetChildren()) do
-                -- Loại bỏ các thành phần UI hệ thống (UICorner, Layout, v.v.)
+                -- Lọc bỏ UI hệ thống
                 if item:IsA("Frame") or item:IsA("ImageLabel") then
                     local itemName = item.Name
-                    local itemAmount = "0"
+                    local itemAmount = ""
                     
-                    -- Quét mọi vật thể con bên trong để tìm Label có chứa số (Số lượng quà)
+                    -- Tìm Label chứa số lượng (x100, 50, ...)
                     for _, v in ipairs(item:GetDescendants()) do
-                        if v:IsA("TextLabel") then
-                            -- Nếu Text có chứa số (ví dụ "x100" hoặc "50")
-                            if v.Text:match("%d") then
-                                itemAmount = v.Text
-                                break
-                            end
+                        if v:IsA("TextLabel") and v.Text:match("%d") then
+                            itemAmount = v.Text
+                            break
                         end
                     end
                     
-                    -- Nếu không tìm thấy số, mặc định là x1 (tránh hiện 0)
-                    if itemAmount == "0" then itemAmount = "x1" end
+                    -- Nếu không thấy số thì mặc định x1
+                    if itemAmount == "" then itemAmount = "x1" end
                     
-                    table.insert(rewards, "📦 **" .. itemName .. "**: " .. itemAmount)
+                    -- Thêm vào danh sách với bullet point giống ảnh mẫu
+                    table.insert(rewards, "• **" .. itemName .. "**: " .. itemAmount)
                 end
             end
         end
     end)
     
     if #rewards > 0 then
-        return table.concat(rewards, "\n> ")
+        return table.concat(rewards, "\n")
     else
-        return "No rewards found (Victory without drops)"
+        return "Không có phần thưởng"
     end
 end
 
@@ -257,7 +255,7 @@ MiscTab:CreateToggle({ Name = "Anti-AFK", CurrentValue = false, Callback = funct
 end })
 MiscTab:CreateButton({ Name = "Rejoin", Callback = function() TeleportService:Teleport(game.PlaceId, lp) end })
 
--- ================= BEAUTIFIED WEBHOOK LOGIC =================
+-- ================= WEBHOOK LOGIC (GIỮ STYLE CŨ + FIX REWARD) =================
 local function sendDiscord()
     if not WebhookEnabled or customWebhook == "" or customWebhook == " " then return end
     local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
@@ -269,27 +267,24 @@ local function sendDiscord()
     local isWin = rawResult:lower():find("win") or rawResult:lower():find("victory")
     
     local final_payload = {
+        ["content"] = "KazeHub Match Result",
         ["embeds"] = {{
-            ["title"] = isWin and "🏆 " .. rawResult:upper() or "💀 " .. rawResult:upper(),
-            ["color"] = isWin and 524287 or 16711680,
-            ["description"] = "### " .. content.Stage.Text,
+            ["title"] = isWin and "🏆 VICTORY" or "💀 DEFEAT",
+            ["color"] = isWin and 3066993 or 15158332,
+            ["description"] = "👤 Player: **" .. lp.Name .. "**\n" .. "🗺 Stage: **" .. content.Stage.Text .. "**",
             ["fields"] = {
-                {
-                    ["name"] = "📊 **Balance**",
-                    ["value"] = "```" .. getTotalBalance():gsub("💰 ", ""):gsub("💎 ", "") .. "```",
-                    ["inline"] = false
+                { 
+                    ["name"] = "🎁 Rewards", 
+                    ["value"] = getMatchRewards(), 
+                    ["inline"] = false 
                 },
-                {
-                    ["name"] = "🎁 **Rewards**",
-                    ["value"] = "> " .. getMatchRewards(),
-                    ["inline"] = false
-                }
+                { 
+                    ["name"] = "💰 Balance", 
+                    ["value"] = getTotalBalance(), 
+                    ["inline"] = false 
+                },
             },
-            ["author"] = {
-                ["name"] = "KazeHub Result: " .. lp.Name,
-                ["icon_url"] = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. lp.UserId .. "&width=420&height=420&format=png"
-            },
-            ["footer"] = { ["text"] = "Time: " .. os.date("%X") .. " | KazeHub Optimized" }
+            ["footer"] = { ["text"] = "KazeHub | Delta X Fix" }
         }}
     }
 
@@ -298,7 +293,7 @@ local function sendDiscord()
             s_request({
                 Url = proxyUrl,
                 Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
+                Headers = {["Content-Type"] = "application/json", ["User-Agent"] = "KazeHub_Fix"},
                 Body = HttpService:JSONEncode(final_payload)
             })
         end)
@@ -320,7 +315,7 @@ task.spawn(function()
             if isVisible then
                 if not sent then
                     sent = true
-                    task.wait(5) -- Đợi 5 giây để Story Mode load quà xong hoàn toàn
+                    task.wait(5) -- Đợi 5s để đảm bảo toàn bộ số liệu phần thưởng kịp cập nhật
                     sendDiscord()
                 end
             else
