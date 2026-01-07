@@ -1,4 +1,4 @@
--- ================= KAZEHUB FINAL FIXED REWARD VERSION =================
+-- ================= KAZEHUB FINAL FIXED (STORY REWARD OK) =================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -78,18 +78,22 @@ local function isPlayerInBattle()
     return battleGui and battleGui.Enabled or false
 end
 
--- HÀM QUÉT REWARD MỚI (FIXED)
+-- HÀM QUÉT REWARD DỰA TRÊN ẢNH EXPLORER BẠN CUNG CẤP
 local function getMatchRewards()
     local rewards = {}
     pcall(function()
-        local rewardList = lp.PlayerGui.battle.Result.Base.Content.Rewards:FindFirstChild("List")
-        if rewardList then
-            for _, item in ipairs(rewardList:GetChildren()) do
-                -- Chỉ lấy Frame/ImageLabel và bỏ qua các UI Layout
-                if (item:IsA("Frame") or item:IsA("ImageLabel")) and item.Name ~= "UIListLayout" then
-                    local name = item.Name
-                    local amount = item:FindFirstChild("Amount") and item.Amount.Text or "1"
-                    table.insert(rewards, "📦 " .. name .. ": x" .. amount)
+        -- Theo ảnh: Content -> Rewards
+        local rewardsFolder = lp.PlayerGui.battle.Result.Base.Content:FindFirstChild("Rewards")
+        
+        if rewardsFolder then
+            for _, item in ipairs(rewardsFolder:GetChildren()) do
+                -- Lọc bỏ các UI Layout (UICorner, UIGradient, v.v.)
+                if item:IsA("Frame") or item:IsA("ImageLabel") then
+                    -- Tìm TextLabel chứa số lượng
+                    local amountLabel = item:FindFirstChildWhichIsA("TextLabel", true) 
+                    local amountText = amountLabel and amountLabel.Text or "1"
+                    
+                    table.insert(rewards, "📦 " .. item.Name .. ": x" .. amountText)
                 end
             end
         end
@@ -98,7 +102,7 @@ local function getMatchRewards()
     if #rewards > 0 then
         return table.concat(rewards, "\n> ")
     else
-        return "No items dropped"
+        return "No rewards found"
     end
 end
 
@@ -156,7 +160,7 @@ local function joinChallengeRoom()
     end
 end
 
--- ================= UI TABS =================
+-- ================= UI TAB 1 — LOBBY / FARM =================
 local Main = Window:CreateTab("Lobby / Farm", 4483362458)
 local MapDropdown
 
@@ -202,6 +206,7 @@ Main:CreateToggle({
     end
 })
 
+-- ================= UI TAB 2 — CHALLENGES =================
 local ChallengeTab = Window:CreateTab("Challenges", 4483362458)
 ChallengeTab:CreateSection("Team Management")
 ChallengeTab:CreateToggle({ Name = "Auto Equip Challenge Team", CurrentValue = false, Callback = function(val) AutoEquipTeam = val end })
@@ -226,11 +231,13 @@ ChallengeTab:CreateToggle({ Name = "Smart Auto Challenge", CurrentValue = false,
     end
 end })
 
+-- ================= UI TAB 3 — WEBHOOK =================
 local Tab2 = Window:CreateTab("Webhook", 4483362458)
 Tab2:CreateToggle({ Name = "Enable Webhook", CurrentValue = true, Callback = function(v) WebhookEnabled = v end })
 Tab2:CreateInput({ Name = "Link Webhook", CurrentValue = customWebhook, PlaceholderText = "Webhook link...", Callback = function(txt) customWebhook = txt end })
 Tab2:CreateButton({ Name = "Save Webhook", Callback = function() writefile("custom_webhook.txt", customWebhook) end })
 
+-- ================= UI TAB 4 — MISC =================
 local MiscTab = Window:CreateTab("Misc", 4483362458)
 MiscTab:CreateToggle({ Name = "Anti-AFK", CurrentValue = false, Callback = function(Value)
     if Value then _G.AFK = lp.Idled:Connect(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new(0,0)) end)
@@ -238,7 +245,7 @@ MiscTab:CreateToggle({ Name = "Anti-AFK", CurrentValue = false, Callback = funct
 end })
 MiscTab:CreateButton({ Name = "Rejoin", Callback = function() TeleportService:Teleport(game.PlaceId, lp) end })
 
--- ================= FINAL BEAUTIFIED WEBHOOK LOGIC =================
+-- ================= BEAUTIFIED WEBHOOK LOGIC =================
 local function sendDiscord()
     if not WebhookEnabled or customWebhook == "" or customWebhook == " " then return end
     local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
@@ -270,7 +277,7 @@ local function sendDiscord()
                 ["name"] = "KazeHub Result: " .. lp.Name,
                 ["icon_url"] = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. lp.UserId .. "&width=420&height=420&format=png"
             },
-            ["footer"] = { ["text"] = "Time: " .. os.date("%X") .. " | KazeHub" }
+            ["footer"] = { ["text"] = "Time: " .. os.date("%X") .. " | KazeHub Optimized" }
         }}
     }
 
@@ -286,19 +293,23 @@ local function sendDiscord()
     end)
 end
 
+-- ================= AUTO TRIGGER (FIXED VISIBLE ERROR) =================
 local sent = false
 task.spawn(function()
     while true do
         task.wait(1)
         local battleGui = lp.PlayerGui:FindFirstChild("battle")
         local resultUI = battleGui and battleGui:FindFirstChild("Result")
+        
         if resultUI then
             local isVisible = false
+            -- Dùng pcall để check tránh lỗi "Visible is not a member of ScreenGui"
             pcall(function() isVisible = resultUI.Visible end)
+
             if isVisible then
                 if not sent then
                     sent = true
-                    task.wait(3) -- Tăng thời gian đợi phần thưởng load
+                    task.wait(4) -- Đợi 4 giây để chắc chắn quà Story hiện đầy đủ
                     sendDiscord()
                 end
             else
