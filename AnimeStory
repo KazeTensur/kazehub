@@ -44,77 +44,16 @@ local AutoChallengeEnabled = false
 local AutoEquipTeam = false
 local IgnoredDebuffs = {}
 
+-- Lấy hàm request của Delta
 local s_request = (syn and syn.request) or (http and http.request) or http_request or request
 
 -- ================= LOAD WEBHOOK =================
 pcall(function()
     if isfile("custom_webhook.txt") then
         customWebhook = readfile("custom_webhook.txt")
+        print("💾 Webhook loaded from file")
     end
 end)
-
--- ================= HELPER FUNCTIONS =================
-local function getSortedMaps()
-    local list = {}
-    if WorldsFolder then
-        for _, map in ipairs(WorldsFolder:GetChildren()) do
-            if map:IsA("Model") or map:IsA("Folder") then
-                table.insert(list, map.Name)
-            end
-        end
-    end
-    table.sort(list, function(a,b) return a:lower() < b:lower() end)
-    return list
-end
-
-local function getTotalBalance()
-    local data = lp:FindFirstChild("Data")
-    if not data then return "N/A" end
-    return string.format("💰 Coins: %s\n💎 Gems: %s", data.Coins.Value, data.Gems.Value)
-end
-
-local function isPlayerInBattle()
-    local battleGui = lp.PlayerGui:FindFirstChild("battle")
-    return battleGui and battleGui.Enabled or false
-end
-
--- HÀM QUÉT REWARD CẢI TIẾN - GIỮ ĐỊNH DẠNG ĐẸP
-local function getMatchRewards()
-    local rewards = {}
-    pcall(function()
-        local rewardsFolder = lp.PlayerGui.battle.Result.Base.Content:FindFirstChild("Rewards")
-        
-        if rewardsFolder then
-            for _, item in ipairs(rewardsFolder:GetChildren()) do
-                -- Lọc bỏ UI hệ thống
-                if item:IsA("Frame") or item:IsA("ImageLabel") then
-                    local itemName = item.Name
-                    local itemAmount = ""
-                    
-                    -- Tìm Label chứa số lượng (x100, 50, ...)
-                    for _, v in ipairs(item:GetDescendants()) do
-                        if v:IsA("TextLabel") and v.Text:match("%d") then
-                            itemAmount = v.Text
-                            break
-                        end
-                    end
-                    
-                    -- Nếu không thấy số thì mặc định x1
-                    if itemAmount == "" then itemAmount = "x1" end
-                    
-                    -- Thêm vào danh sách với bullet point giống ảnh mẫu
-                    table.insert(rewards, "• **" .. itemName .. "**: " .. itemAmount)
-                end
-            end
-        end
-    end)
-    
-    if #rewards > 0 then
-        return table.concat(rewards, "\n")
-    else
-        return "Không có phần thưởng"
-    end
-end
 
 -- ================= FARM ACTIONS =================
 local function runAutoJoin()
@@ -216,6 +155,34 @@ Main:CreateToggle({
     end
 })
 
+-- ================= UI PATH (GAME DATA) =================
+local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
+local content = resultUI:WaitForChild("Base"):WaitForChild("Content")
+local resultLabel  = content:WaitForChild("Result")
+local rewardFolder = content:WaitForChild("Rewards")
+local stageLabel   = content:WaitForChild("Stage")
+
+-- ================= DATA HELPERS =================
+local function getTotalBalance()
+    local data = lp:FindFirstChild("Data")
+    if not data then return "N/A" end
+    local coins = data:FindFirstChild("Coins")
+    local gems  = data:FindFirstChild("Gems")
+    return string.format("💰 Coins: %s\n💎 Gems: %s", coins and coins.Value or 0, gems and gems.Value or 0)
+end
+
+local function getMatchRewards()
+    local rewards = {}
+    for _, item in ipairs(rewardFolder:GetChildren()) do
+        local qty = item:FindFirstChild("Quantity")
+        if qty and qty:IsA("TextLabel") and qty.Text ~= "" then
+            table.insert(rewards, "• **" .. item.Name .. "**: " .. qty.Text)
+        end
+    end
+    return #rewards > 0 and table.concat(rewards, "\n") or "Không có phần thưởng"
+end
+
+
 -- ================= UI TAB 2 — CHALLENGES =================
 local ChallengeTab = Window:CreateTab("Challenges", 4483362458)
 ChallengeTab:CreateSection("Team Management")
@@ -243,46 +210,156 @@ end })
 
 -- ================= UI TAB 3 — WEBHOOK =================
 local Tab2 = Window:CreateTab("Webhook", 4483362458)
-Tab2:CreateToggle({ Name = "Enable Webhook", CurrentValue = true, Callback = function(v) WebhookEnabled = v end })
-Tab2:CreateInput({ Name = "Link Webhook", CurrentValue = customWebhook, PlaceholderText = "Webhook link...", Callback = function(txt) customWebhook = txt end })
-Tab2:CreateButton({ Name = "Save Webhook", Callback = function() writefile("custom_webhook.txt", customWebhook) end })
 
+Tab2:CreateToggle({
+    Name = "Enable Webhook",
+    CurrentValue = true,
+    Callback = function(v) WebhookEnabled = v end
+})
+
+Tab2:CreateInput({
+    Name = "Link Webhook",
+    CurrentValue = customWebhook,
+    PlaceholderText = "Dán webhook Discord",
+    Callback = function(txt) customWebhook = txt end,
+})
+
+Tab2:CreateButton({
+    Name = "Test Webhook",
+    Callback = function()
+        if customWebhook == "" then
+            Rayfield:Notify({Title = "Lỗi", Content = "Chưa nhập webhook!"})
+            return
+        end
+        sendDiscord({
+            content = "✅ KazeHub Test Webhook thành công!",
+            embeds = {{ title = "Trạng thái: Hoạt động qua Proxy", color = 0x2ecc71 }}
+        })
+        Rayfield:Notify({Title = "Webhook", Content = "Đang gửi test qua Proxy...", Duration = 2})
+    end
+})
+
+Tab2:CreateButton({
+    Name = "Save Webhook",
+    Callback = function()
+        writefile("custom_webhook.txt", customWebhook)
+        Rayfield:Notify({Title = "Saved", Content = "💾 Webhook đã được lưu!", Duration = 2})
+    end
+})
 -- ================= UI TAB 4 — MISC =================
 local MiscTab = Window:CreateTab("Misc", 4483362458)
-MiscTab:CreateToggle({ Name = "Anti-AFK", CurrentValue = false, Callback = function(Value)
-    if Value then _G.AFK = lp.Idled:Connect(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new(0,0)) end)
-    else if _G.AFK then _G.AFK:Disconnect() end end
-end })
-MiscTab:CreateButton({ Name = "Rejoin", Callback = function() TeleportService:Teleport(game.PlaceId, lp) end })
+
+-- ================= ANTI-AFK FIX =================
+local AntiAFKEnabled = false
+local AntiAFKThread
+local AntiAFKConnection
+
+local function StartAntiAFK()
+    if AntiAFKEnabled then return end
+    AntiAFKEnabled = true
+    AntiAFKConnection = lp.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0,0))
+    end)
+    AntiAFKThread = task.spawn(function()
+        while AntiAFKEnabled do
+            task.wait(30)
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new(0,0))
+        end
+    end)
+    print("🟢 Anti-AFK started")
+end
+
+local function StopAntiAFK()
+    AntiAFKEnabled = false
+    if AntiAFKConnection then AntiAFKConnection:Disconnect() AntiAFKConnection = nil end
+    if AntiAFKThread then task.cancel(AntiAFKThread) AntiAFKThread = nil end
+    print("🔴 Anti-AFK stopped")
+end
+
+MiscTab:CreateToggle({
+    Name = "Anti-AFK",
+    CurrentValue = false,
+    Flag = "AntiAFK",
+    Callback = function(Value)
+        if Value then
+            StartAntiAFK()
+            Rayfield:Notify({Title = "Anti-AFK", Content = "✅ Anti-AFK enabled", Duration = 2.5, Image = 4483362458})
+        else
+            StopAntiAFK()
+            Rayfield:Notify({Title = "Anti-AFK", Content = "❌ Anti-AFK disabled", Duration = 2.5, Image = 4483362458})
+        end
+    end
+})
+
+-- ================= FPS BOOST =================
+local FPSBoostEnabled = false
+MiscTab:CreateToggle({
+    Name = "FPS Boost",
+    CurrentValue = false,
+    Flag = "FPSBoost",
+    Callback = function(Value)
+        FPSBoostEnabled = Value
+        if Value then
+            for _, v in pairs(Workspace:GetDescendants()) do
+                if v:IsA("Part") or v:IsA("UnionOperation") or v:IsA("MeshPart") then
+                    v.Material = Enum.Material.Plastic
+                    v.Reflectance = 0
+                end
+            end
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 9e9
+            Lighting.Brightness = 2
+            Workspace.StreamingEnabled = false
+            for _, particle in pairs(Workspace:GetDescendants()) do
+                if particle:IsA("ParticleEmitter") or particle:IsA("Trail") then
+                    particle:Destroy()
+                end
+            end
+            Rayfield:Notify({Title = "Performance", Content = "🚀 FPS Boost enabled", Duration = 2.5, Image = 4483362458})
+        else
+            Lighting.GlobalShadows = true
+            Workspace.StreamingEnabled = true
+            Rayfield:Notify({Title = "Performance", Content = "⚙️ FPS Boost disabled", Duration = 2.5, Image = 4483362458})
+        end
+    end
+})
+
+-- ================= SAVE CONFIG =================
+MiscTab:CreateButton({
+    Name = "Save Config",
+    Callback = function()
+        Rayfield:SaveConfiguration()
+        Rayfield:Notify({Title = "Config", Content = "💾 Configuration saved successfully!", Duration = 2.5, Image = 4483362458})
+    end
+})
+
+-- ================= REJOIN =================
+MiscTab:CreateButton({
+    Name = "Rejoin",
+    Callback = function()
+        Rayfield:Notify({Title = "Rejoin", Content = "⏳ Rejoining server...", Duration = 2.5, Image = 4483362458})
+        TeleportService:Teleport(game.PlaceId, lp)
+    end
+})
 
 -- ================= WEBHOOK LOGIC (GIỮ STYLE CŨ + FIX REWARD) =================
-local function sendDiscord()
+local function sendDiscord(custom_payload)
     if not WebhookEnabled or customWebhook == "" or customWebhook == " " then return end
-    local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
-    
-    local success, content = pcall(function() return lp.PlayerGui.battle.Result.Base.Content end)
-    if not success then return end
 
-    local rawResult = content.Result.Text
-    local isWin = rawResult:lower():find("win") or rawResult:lower():find("victory")
-    
-    local final_payload = {
+    -- Lách bộ lọc Delta bằng Proxy sạch
+    local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
+
+    local final_payload = custom_payload or {
         ["content"] = "KazeHub Match Result",
         ["embeds"] = {{
-            ["title"] = isWin and "🏆 VICTORY" or "💀 DEFEAT",
-            ["color"] = isWin and 3066993 or 15158332,
-            ["description"] = "👤 Player: **" .. lp.Name .. "**\n" .. "🗺 Stage: **" .. content.Stage.Text .. "**",
+            ["title"] = (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory")) and "🏆 VICTORY" or "💀 DEFEAT",
+            ["color"] = (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory")) and 3066993 or 15158332,
+            ["description"] = "👤 Player: **" .. lp.Name .. "**\n" .. "🗺 Stage: **" .. stageLabel.Text .. "**",
             ["fields"] = {
-                { 
-                    ["name"] = "🎁 Rewards", 
-                    ["value"] = getMatchRewards(), 
-                    ["inline"] = false 
-                },
-                { 
-                    ["name"] = "💰 Balance", 
-                    ["value"] = getTotalBalance(), 
-                    ["inline"] = false 
-                },
+                { ["name"] = "🎁 Rewards", ["value"] = getMatchRewards(), ["inline"] = false },
+                { ["name"] = "💰 Balance", ["value"] = getTotalBalance(), ["inline"] = false },
             },
             ["footer"] = { ["text"] = "KazeHub | Delta X Fix" }
         }}
@@ -302,26 +379,14 @@ end
 
 -- ================= AUTO TRIGGER =================
 local sent = false
-task.spawn(function()
-    while true do
-        task.wait(1)
-        local battleGui = lp.PlayerGui:FindFirstChild("battle")
-        local resultUI = battleGui and battleGui:FindFirstChild("Result")
-        
-        if resultUI then
-            local isVisible = false
-            pcall(function() isVisible = resultUI.Visible end)
-
-            if isVisible then
-                if not sent then
-                    sent = true
-                    task.wait(5) -- Đợi 5s để đảm bảo toàn bộ số liệu phần thưởng kịp cập nhật
-                    sendDiscord()
-                end
-            else
-                sent = false
-            end
-        end
+resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
+    if resultUI.Visible then
+        if sent then return end
+        sent = true
+        task.wait(2)
+        sendDiscord()
+    else
+        sent = false
     end
 end)
 
