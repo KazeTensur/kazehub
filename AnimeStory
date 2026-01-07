@@ -1,4 +1,4 @@
--- ================= KAZEHUB COMPLETE VERSION (FIXED & OPTIMIZED) =================
+-- ================= KAZEHUB CLEAN VERSION (NO SMART STORY) =================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -33,12 +33,15 @@ local WorldsFolder = workspace:WaitForChild("Worlds", 10)
 -- ================= STATE =================
 local SelectedMode = "Story"
 local SelectedMap = nil
-local SelectedAct = "1"
+local SelectedAct = 1
 local SelectedDifficulty = "Normal"
 local RaidMaps = {"Vastora Realm","Ember Village","Power Arena"}
+
 local customWebhook = ""
 local WebhookEnabled = true
+local AutoJoinEnabled = false
 local AutoChallengeEnabled = false
+local AutoEquipTeam = false
 local IgnoredDebuffs = {}
 
 local s_request = (syn and syn.request) or (http and http.request) or http_request or request
@@ -70,45 +73,22 @@ local function getTotalBalance()
     return string.format("💰 Coins: %s\n💎 Gems: %s", data.Coins.Value, data.Gems.Value)
 end
 
--- Fix lỗi IMG_3122 bằng cách kiểm tra .Enabled của ScreenGui
 local function isPlayerInBattle()
     local battleGui = lp.PlayerGui:FindFirstChild("battle")
-    if battleGui then
-        return battleGui.Enabled 
-    end
-    return false
+    return battleGui and battleGui.Enabled or false
 end
 
--- ================= WEBHOOK SYSTEM (SAFE PROXY) =================
-local function sendDiscord(custom_payload)
-    if not WebhookEnabled or customWebhook == "" or not s_request then return end
-    local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
-    
-    task.spawn(function()
-        pcall(function()
-            s_request({
-                Url = proxyUrl,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode(custom_payload)
-            })
-        end)
-    end)
-end
-
--- ================= FARM LOGIC =================
+-- ================= FARM ACTIONS =================
 local function runAutoJoin()
     if not SelectedMap then return end
-    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
     if SelectedMode == "Story" then
-        RemoteEvent:FireServer("battle_start", "story", SelectedMap, tonumber(SelectedAct), SelectedDifficulty)
+        RemoteEvent:FireServer("battle_start", "story", SelectedMap, SelectedAct, SelectedDifficulty)
     elseif SelectedMode == "Raid" then
+        local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
         local raidFolder = workspace:WaitForChild("Rooms"):WaitForChild("raid")
         for _, roomModel in ipairs(raidFolder:GetChildren()) do
             local touchPart = roomModel:FindFirstChild("Touch", true)
-            if touchPart then
+            if touchPart and hrp then
                 firetouchinterest(hrp, touchPart, 0)
                 task.wait(0.1)
                 firetouchinterest(hrp, touchPart, 1)
@@ -125,45 +105,28 @@ end
 -- ================= SMART CHALLENGE LOGIC =================
 local function getLiveChallengeData()
     local success, result = pcall(function()
-        -- Đường dẫn chuẩn từ ảnh IMG_3120
         local baseUI = workspace.Lobby.ChallengeInfo["Semi-Hourly"].Model.Part.SurfaceGui.Base
-        local rewardsList = {}
-        for _, child in ipairs(baseUI.Rewards:GetChildren()) do
-            if child:IsA("GuiObject") then
-                table.insert(rewardsList, child.Name)
-            end
-        end
-        return {
-            Map = baseUI.MapName.Text,
-            Debuff = baseUI.Debuff.Text,
-            Rewards = #rewardsList > 0 and table.concat(rewardsList, ", ") or "N/A"
-        }
+        return { Map = baseUI.MapName.Text, Debuff = baseUI.Debuff.Text }
     end)
-    return success and result or {Map = "N/A", Debuff = "N/A", Rewards = "N/A"}
+    return success and result or {Map = "N/A", Debuff = "N/A"}
 end
 
 local function joinChallengeRoom()
     local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    -- Đường dẫn chuẩn từ ảnh IMG_3121
     local touchPart = workspace.Rooms.challenges.Model.Touch
     local liveData = getLiveChallengeData()
-
     if hrp and touchPart and liveData.Map ~= "N/A" then
-        -- Teleport nhẹ tới vị trí Touch để đảm bảo trigger
+        if AutoEquipTeam then
+            RemoteEvent:FireServer("equip_team", 1)
+            task.wait(1.2)
+        end
         hrp.CFrame = touchPart.CFrame * CFrame.new(0, 2, 0)
         task.wait(0.2)
-        
         firetouchinterest(hrp, touchPart, 0)
         task.wait(0.1)
         firetouchinterest(hrp, touchPart, 1)
         task.wait(0.8)
-
-        -- Remote Select chính xác với Act 7 và Debuff Table
-        RemoteEvent:FireServer("room_select", liveData.Map, 7, {
-            ["ChallengeType"] = "Semi-Hourly",
-            ["Debuff"] = liveData.Debuff
-        })
-        
+        RemoteEvent:FireServer("room_select", liveData.Map, 7, { ["ChallengeType"] = "Semi-Hourly", ["Debuff"] = liveData.Debuff })
         task.wait(0.5)
         RemoteEvent:FireServer("room_start")
     end
@@ -179,9 +142,7 @@ Main:CreateDropdown({
     CurrentOption = {"Story"},
     Callback = function(opt)
         SelectedMode = opt[1]
-        if MapDropdown then
-            MapDropdown:Refresh(SelectedMode == "Raid" and RaidMaps or getSortedMaps(), true)
-        end
+        if MapDropdown then MapDropdown:Refresh(SelectedMode == "Raid" and RaidMaps or getSortedMaps(), true) end
     end
 })
 
@@ -196,7 +157,7 @@ Main:CreateDropdown({
     Name = "3. Select Act",
     Options = {"1","2","3","4","5","6","7","8","9","10"},
     CurrentOption = {"1"},
-    Callback = function(opt) SelectedAct = opt[1] end
+    Callback = function(opt) SelectedAct = tonumber(opt[1]) end
 })
 
 Main:CreateDropdown({
@@ -206,141 +167,81 @@ Main:CreateDropdown({
     Callback = function(opt) SelectedDifficulty = opt[1] end
 })
 
+Main:CreateSection("Automation")
+
 Main:CreateToggle({
     Name = "Auto Join & Start",
     CurrentValue = false,
-    Callback = function(val) if val then runAutoJoin() end end
+    Callback = function(val) 
+        AutoJoinEnabled = val 
+        if val and not isPlayerInBattle() then runAutoJoin() end
+    end
 })
 
 -- ================= UI TAB 2 — CHALLENGES =================
 local ChallengeTab = Window:CreateTab("Challenges", 4483362458)
-
-ChallengeTab:CreateDropdown({
-    Name = "Ignore Debuffs (Multi-select)",
-    Options = {"Double Stats", "Weakened Units", "Burn Enemies", "Poison Enemies"},
-    CurrentOption = {},
-    MultipleOptions = true,
-    Callback = function(Options) IgnoredDebuffs = Options end
-})
-
+ChallengeTab:CreateSection("Team Management")
+ChallengeTab:CreateToggle({ Name = "Auto Equip Challenge Team", CurrentValue = false, Callback = function(val) AutoEquipTeam = val end })
+ChallengeTab:CreateSection("Challenge Filter")
+ChallengeTab:CreateDropdown({ Name = "Ignore Debuffs", Options = {"Double Stats", "Weakened Units", "Burn Enemies", "Poison Enemies"}, CurrentOption = {}, MultipleOptions = true, Callback = function(Options) IgnoredDebuffs = Options end })
 local ChalStatus = ChallengeTab:CreateLabel("Status: Waiting...")
-
-ChallengeTab:CreateToggle({
-    Name = "Smart Auto Challenge",
-    CurrentValue = false,
-    Callback = function(val)
-        AutoChallengeEnabled = val
-        if val then
-            task.spawn(function()
-                while AutoChallengeEnabled do
-                    if not isPlayerInBattle() then
-                        local data = getLiveChallengeData()
-                        ChalStatus:Set("Map: "..data.Map.." | Debuff: "..data.Debuff)
-                        
-                        local isIgnored = false
-                        for _, skip in ipairs(IgnoredDebuffs) do
-                            if data.Debuff:find(skip) then isIgnored = true break end
-                        end
-                        
-                        if not isIgnored and data.Map ~= "N/A" then
-                            joinChallengeRoom()
-                        end
-                    end
-                    task.wait(15)
+ChallengeTab:CreateToggle({ Name = "Smart Auto Challenge", CurrentValue = false, Callback = function(val)
+    AutoChallengeEnabled = val
+    if val then
+        task.spawn(function()
+            while AutoChallengeEnabled do
+                if not isPlayerInBattle() then
+                    local data = getLiveChallengeData()
+                    ChalStatus:Set("Map: "..data.Map.." | Debuff: "..data.Debuff)
+                    local isIgnored = false
+                    for _, skip in ipairs(IgnoredDebuffs) do if data.Debuff:find(skip) then isIgnored = true break end end
+                    if not isIgnored and data.Map ~= "N/A" then joinChallengeRoom() end
                 end
-            end)
-        end
+                task.wait(15)
+            end
+        end)
     end
-})
+end })
 
 -- ================= UI TAB 3 — WEBHOOK =================
 local Tab2 = Window:CreateTab("Webhook", 4483362458)
-
-Tab2:CreateToggle({
-    Name = "Enable Webhook",
-    CurrentValue = true,
-    Callback = function(v) WebhookEnabled = v end
-})
-
-Tab2:CreateInput({
-    Name = "Link Webhook",
-    CurrentValue = customWebhook,
-    PlaceholderText = "Dán webhook Discord",
-    Callback = function(txt) customWebhook = txt end,
-})
-
-Tab2:CreateButton({
-    Name = "Save Webhook",
-    Callback = function() writefile("custom_webhook.txt", customWebhook) end
-})
+Tab2:CreateToggle({ Name = "Enable Webhook", CurrentValue = true, Callback = function(v) WebhookEnabled = v end })
+Tab2:CreateInput({ Name = "Link Webhook", CurrentValue = customWebhook, PlaceholderText = "Webhook link...", Callback = function(txt) customWebhook = txt end })
+Tab2:CreateButton({ Name = "Save Webhook", Callback = function() writefile("custom_webhook.txt", customWebhook) end })
 
 -- ================= UI TAB 4 — MISC =================
 local MiscTab = Window:CreateTab("Misc", 4483362458)
+MiscTab:CreateToggle({ Name = "Anti-AFK", CurrentValue = false, Callback = function(Value)
+    if Value then _G.AFK = lp.Idled:Connect(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new(0,0)) end)
+    else if _G.AFK then _G.AFK:Disconnect() end end
+end })
+MiscTab:CreateButton({ Name = "Rejoin", Callback = function() TeleportService:Teleport(game.PlaceId, lp) end })
 
-local AntiAFKEnabled = false
-local AntiAFKConnection
-
-MiscTab:CreateToggle({
-    Name = "Anti-AFK",
-    CurrentValue = false,
-    Callback = function(Value)
-        AntiAFKEnabled = Value
-        if Value then
-            AntiAFKConnection = lp.Idled:Connect(function()
-                VirtualUser:CaptureController()
-                VirtualUser:ClickButton2(Vector2.new(0,0))
-            end)
-        else
-            if AntiAFKConnection then AntiAFKConnection:Disconnect() end
-        end
-    end
-})
-
-MiscTab:CreateToggle({
-    Name = "FPS Boost",
-    CurrentValue = false,
-    Callback = function(Value)
-        if Value then
-            for _, v in pairs(Workspace:GetDescendants()) do
-                if v:IsA("Part") then v.Material = Enum.Material.Plastic v.Reflectance = 0 end
-            end
-            Lighting.GlobalShadows = false
-        else
-            Lighting.GlobalShadows = true
-        end
-    end
-})
-
-MiscTab:CreateButton({
-    Name = "Rejoin",
-    Callback = function() TeleportService:Teleport(game.PlaceId, lp) end
-})
-
--- ================= AUTO WEBHOOK RESULT =================
+-- ================= WEBHOOK LOGIC =================
 task.spawn(function()
-    local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
-    local sent = false
     while true do
-        if resultUI.Visible then
-            if not sent then
-                sent = true
-                task.wait(2)
-                local stage = resultUI.Base.Content.Stage.Text
-                local res = resultUI.Base.Content.Result.Text
-                sendDiscord({
-                    ["embeds"] = {{
-                        ["title"] = res,
-                        ["description"] = "Player: " .. lp.Name .. "\nStage: " .. stage,
-                        ["fields"] = {{["name"] = "Balance", ["value"] = getTotalBalance()}}
-                    }}
-                })
-            end
-        else
-            sent = false
-        end
         task.wait(2)
+        local battleGui = lp.PlayerGui:FindFirstChild("battle")
+        local resultUI = battleGui and battleGui:FindFirstChild("Result")
+
+        if resultUI and resultUI.Visible then
+            if WebhookEnabled and customWebhook ~= "" then
+                pcall(function()
+                    s_request({
+                        Url = customWebhook:gsub("discord.com", "webhook.lewisakura.moe"),
+                        Method = "POST",
+                        Headers = {["Content-Type"] = "application/json"},
+                        Body = HttpService:JSONEncode({["embeds"] = {{
+                            ["title"] = resultUI.Base.Content.Result.Text,
+                            ["description"] = "Stage: " .. resultUI.Base.Content.Stage.Text,
+                            ["fields"] = {{["name"] = "Balance", ["value"] = getTotalBalance()}}
+                        }}})
+                    })
+                end)
+            end
+            repeat task.wait(1) until not resultUI.Visible
+        end
     end
 end)
 
 Rayfield:LoadConfiguration()
-print("✅ KazeHub Fully Loaded & Fixed")
