@@ -101,31 +101,45 @@ local function sendResultWebhook(resultData)
     end)
 end
 
--- ================= BATTLE END DETECTOR =================
+-- ================= BATTLE END DETECTOR (FIXED) =================
 task.spawn(function()
-    local battleGui = lp.PlayerGui:WaitForChild("battle", 60)
-    if not battleGui then return end
+    local stats = lp:WaitForChild("leaderstats", 10)
+    if not stats then return end
 
-    battleGui:GetPropertyChangedSignal("Enabled"):Connect(function()
-        if battleGui.Enabled == false then
-            task.wait(1)
+    local coins = stats:WaitForChild("Coins", 10)
+    local gems = stats:WaitForChild("Gems", 10)
+    if not coins or not gems then return end
 
-            -- ==== SAFE DATA (không crash nếu game đổi UI) ====
-            local result = {
-                Win = true,
-                Stage = SelectedMap or "Unknown",
-                Gems = 75,
-                Coins = 11250,
-                Exp = 330,
-                TotalCoins = math.floor(lp.leaderstats.Coins.Value),
-                TotalGems = lp.leaderstats.Gems.Value
-            }
+    local lastCoins = coins.Value
+    local lastGems = gems.Value
+    local sent = false
 
-            sendResultWebhook(result)
-                    print("📨 Sending webhook:", customWebhook)
+    while true do
+        task.wait(1)
 
+        if isPlayerInBattle() then
+            sent = false
+            lastCoins = coins.Value
+            lastGems = gems.Value
+        else
+            if not sent and (coins.Value ~= lastCoins or gems.Value ~= lastGems) then
+                sent = true
+
+                local result = {
+                    Win = true,
+                    Stage = SelectedMap or "Unknown",
+                    Gems = gems.Value - lastGems,
+                    Coins = coins.Value - lastCoins,
+                    Exp = 0,
+                    TotalCoins = coins.Value,
+                    TotalGems = gems.Value
+                }
+
+                print("📨 Sending webhook (battle end)")
+                sendResultWebhook(result)
+            end
         end
-    end)
+    end
 end)
 
 -- ================= MAIN TAB =================
