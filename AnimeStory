@@ -85,6 +85,18 @@ local rewardFolder = content:WaitForChild("Rewards")
 local stageLabel   = content:WaitForChild("Stage")
 
 -- ================= WEBHOOK CORE =================
+-- ================= WEBHOOK CORE (DELTA SAFE + CHI TIẾT REWARDS) =================
+local function getMatchRewards()
+    local rewards = {}
+    for _, item in ipairs(rewardFolder:GetChildren()) do
+        local qty = item:FindFirstChild("Quantity")
+        if qty and qty:IsA("TextLabel") and qty.Text ~= "" then
+            table.insert(rewards, "• **" .. item.Name .. "**: " .. qty.Text)
+        end
+    end
+    return #rewards > 0 and table.concat(rewards, "\n") or "Không có phần thưởng"
+end
+
 local function sendResultWebhook()
     if not WebhookEnabled then return end
     if customWebhook == "" or customWebhook == " " then return end
@@ -105,7 +117,7 @@ local function sendResultWebhook()
                 "🗺 Stage: **"..stageLabel.Text.."**",
             fields = {{
                 name = "🎁 Rewards",
-                value = (#rewardFolder:GetChildren() > 0) and "Xem trong game" or "Không có",
+                value = getMatchRewards(),
                 inline = false
             }},
             footer = { text = "KazeHub | Delta X Safe" }
@@ -137,7 +149,6 @@ resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
         sent = false
     end
 end)
-
 
 -- ================= MAIN TAB =================
 local Main = Window:CreateTab("Lobby / Farm", 4483362458)
