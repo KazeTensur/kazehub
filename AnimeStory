@@ -207,46 +207,50 @@ local function getMatchRewards()
     return #rewards > 0 and table.concat(rewards, "\n") or "Không có phần thưởng"
 end
 
--- ================= SEND DISCORD (SAFE) =================
+-- ================= SEND DISCORD (DELTA SAFE VERSION) =================
 local function sendDiscord()
-if not WebhookEnabled or customWebhook == "" then return end
+    if not WebhookEnabled or customWebhook == "" or customWebhook == " " then return end
 
-task.wait(1)
+    task.wait(1)
 
-local resultText = resultLabel.Text or ""
-local isWin = resultText:lower():find("win") or resultText:lower():find("victory")
+    -- Xác định hàm request của Delta
+    local s_request = (syn and syn.request) or (http and http.request) or http_request or request
+    if not s_request then 
+        warn("Executor không hỗ trợ hàm Request!")
+        return 
+    end
 
-local payload = {
-    content = "KazeHub Match Result",
-    embeds = {{
-        title = isWin and "🏆 VICTORY" or "💀 DEFEAT",
-        color = isWin and 0x2ecc71 or 0xe74c3c,
-        description =
-            "👤 Player: **" .. lp.Name .. "**\n" ..
-            "🗺 Stage: **" .. stageLabel.Text .. "**",
-        fields = {
-            { name = "🎁 Rewards", value = getMatchRewards(), inline = false },
-            { name = "💰 Balance", value = getTotalBalance(), inline = false },
-        },
-        footer = { text = "KazeHub | Delta SAFE" }
-    }}
-}
+    local resultText = resultLabel.Text or ""
+    local isWin = resultText:lower():find("win") or resultText:lower():find("victory")
 
-local success, err = pcall(function()
-    HttpService:PostAsync(
-        customWebhook,
-        HttpService:JSONEncode(payload),
-        Enum.HttpContentType.ApplicationJson
-    )
-end)
+    local payload = {
+        ["content"] = "KazeHub Match Result",
+        ["embeds"] = {{
+            ["title"] = isWin and "🏆 VICTORY" or "💀 DEFEAT",
+            ["color"] = isWin and 3066993 or 15158332,
+            ["description"] = "👤 Player: **" .. lp.Name .. "**\n" ..
+                              "🗺 Stage: **" .. stageLabel.Text .. "**",
+            ["fields"] = {
+                { ["name"] = "🎁 Rewards", ["value"] = getMatchRewards(), ["inline"] = false },
+                { ["name"] = "💰 Balance", ["value"] = getTotalBalance(), ["inline"] = false },
+            },
+            ["footer"] = { ["text"] = "KazeHub | Delta X Fix" }
+        }}
+    }
 
-if success then
-    print("✅ Discord webhook SENT (HttpService)")
-else
-    warn("❌ Webhook FAILED:", err)
+    local response = s_request({
+        Url = customWebhook,
+        Method = "POST",
+        Headers = {["Content-Type"] = "application/json"},
+        Body = HttpService:JSONEncode(payload)
+    })
+
+    if response.Success then
+        print("✅ Discord webhook SENT via Request")
+    else
+        warn("❌ Webhook FAIL: " .. response.StatusCode)
+    end
 end
-end
-
 -- ================= TRIGGER (ANTI DUPLICATE) =================
 local sent = false
 resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
