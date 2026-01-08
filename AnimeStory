@@ -1,9 +1,9 @@
--- ================= KAZEHUB BEAUTY UI + LUCIDE ICONS =================
+-- ================= KAZEHUB CLEAN FINAL + BEAUTY UI =================
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
     Name = "✨ KazeHub!",
-    Icon = "lucide-rocket", -- Topbar icon
+    Icon = 0,
     LoadingTitle = "Welcome to KazeHub!",
     LoadingSubtitle = "by Kaze",
     ConfigurationSaving = {
@@ -86,6 +86,14 @@ local function getMatchRewards()
     return #rewards > 0 and table.concat(rewards, "\n") or "Không có phần thưởng"
 end
 
+local function getTotalBalance()
+    local data = lp:FindFirstChild("Data")
+    if not data then return "N/A" end
+    local coins = data:FindFirstChild("Coins")
+    local gems  = data:FindFirstChild("Gems")
+    return string.format("💰 Coins: %s\n💎 Gems: %s", coins and coins.Value or 0, gems and gems.Value or 0)
+end
+
 local function sendResultWebhook()
     if not WebhookEnabled then return end
     if customWebhook == "" or customWebhook == " " then return end
@@ -118,30 +126,35 @@ local function sendResultWebhook()
     end
 
     local rewardText = getMatchRewards()
+
     local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
 
     local payload = {
         content = "KazeHub Match Result",
         embeds = {{
-            title = (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory")) and "🏆 VICTORY" or "💀 DEFEAT",
-            color = (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory")) and 3066993 or 15158332,
-            description = "👤 Player: **"..lp.Name.."**\n🗺 Stage: **"..stageLabel.Text.."**",
+            title = (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory"))
+                and "🏆 VICTORY" or "💀 DEFEAT",
+            color = (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory"))
+                and 3066993 or 15158332,
+            description =
+                "👤 Player: **"..lp.Name.."**\n"..
+                "🗺 Stage: **"..stageLabel.Text.."**",
             fields = {
-                {name="🎁 Rewards", value=rewardText, inline=false},
-                {name="💰 Balance", value=balanceText, inline=false},
-                {name="🛠️ Items", value=traitText, inline=false}
+                {name = "🎁 Rewards", value = rewardText, inline = false},
+                {name = "💰 Balance", value = balanceText, inline = false},
+                {name = "🛠️ Items", value = traitText, inline = false}
             },
-            footer={text="✨ KazeHub | Delta X Safe"}
+            footer = { text = "✨ KazeHub | Delta X Safe" }
         }}
     }
 
     task.spawn(function()
         pcall(function()
             s_request({
-                Url=proxyUrl,
-                Method="POST",
-                Headers={["Content-Type"]="application/json"},
-                Body=HttpService:JSONEncode(payload)
+                Url = proxyUrl,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(payload)
             })
         end)
     end)
@@ -162,46 +175,41 @@ resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
 end)
 
 -- ================= MAIN TAB =================
-local Main = Window:CreateTab("Lobby / Farm", "lucide-map")
+local Main = Window:CreateTab("🗺 Lobby / Farm", 4483362458)
 
 Main:CreateLabel("🌟 Mode / Map Selection")
 Main:CreateDropdown({
-    Name = "Select Mode",
+    Name = "Select Mode 🌟",
     Options = {"Story","Raid"},
     CurrentOption = {"Story"},
     Flag = "Mode",
-    Icon = "lucide-star",
     Callback = function(opt) SelectedMode = opt[1] end
 })
 Main:CreateDropdown({
-    Name = "Select Map",
+    Name = "Select Map 🗺️",
     Options = getSortedMaps(),
     CurrentOption = {getSortedMaps()[1]},
     Flag = "Map",
-    Icon = "lucide-map-pin",
     Callback = function(opt) SelectedMap = opt[1] end
 })
 Main:CreateDropdown({
-    Name = "Select Act",
+    Name = "Select Act 🔢",
     Options = {"1","2","3","4","5","6","7","8","9","10"},
     CurrentOption = {"1"},
     Flag = "Act",
-    Icon = "lucide-hash",
     Callback = function(opt) SelectedAct = opt[1] end
 })
 Main:CreateDropdown({
-    Name = "Difficulty",
+    Name = "Difficulty ⚔️",
     Options = {"Normal","Hard","Nightmare"},
     CurrentOption = {"Normal"},
     Flag = "Difficulty",
-    Icon = "lucide-sliders",
     Callback = function(opt) SelectedDifficulty = opt[1] end
 })
 Main:CreateToggle({
-    Name = "Auto Join & Start",
+    Name = "Auto Join & Start 🚀",
     CurrentValue = false,
     Flag = "AutoJoinStart",
-    Icon = "lucide-rocket",
     Callback = function(v)
         if v and not isPlayerInBattle() then
             RemoteEvent:FireServer("battle_start","story",SelectedMap,tonumber(SelectedAct),SelectedDifficulty)
@@ -210,64 +218,60 @@ Main:CreateToggle({
 })
 
 -- ================= CHALLENGE TAB =================
-local ChallengeTab = Window:CreateTab("Challenges", "lucide-shield")
+local ChallengeTab = Window:CreateTab("🧠 Challenges", 4483362458)
 ChallengeTab:CreateLabel("⚠️ Requires saved team in SLOT 1")
+
 local AutoChallengeEnabled = false
 local AutoEquipTeam = false
 local IgnoredDebuffs = {}
 
 ChallengeTab:CreateToggle({
-    Name = "Auto Equip Team (Slot 1)",
+    Name = "Auto Equip Team (Slot 1) 🛡️",
     CurrentValue = false,
     Flag = "AutoEquipTeam",
-    Icon = "lucide-shield-check",
     Callback = function(v) AutoEquipTeam = v end
 })
 ChallengeTab:CreateDropdown({
-    Name = "Ignore Debuffs",
+    Name = "Ignore Debuffs ❌",
     Options = {"Double Stats","Weakened Units","Burn Enemies","Poison Enemies"},
     MultipleOptions = true,
     CurrentOption = {},
     Flag = "IgnoredDebuffs",
-    Icon = "lucide-x-circle",
     Callback = function(opts) IgnoredDebuffs = opts end
 })
-local StatusLabel = ChallengeTab:CreateLabel("Status: Waiting...")
+local StatusLabel = ChallengeTab:CreateLabel("🔹 Status: Waiting...")
 
 -- ================= GAMEPLAY TAB =================
-local GameplayTab = Window:CreateTab("Gameplay", "lucide-dice-5")
+local GameplayTab = Window:CreateTab("🎰 Gameplay", 4483362458)
 GameplayTab:CreateLabel("🎯 Summon / Spinner Settings")
 local SelectedGameplay = "x10 Summon Banner"
 local AutoSpinEnabled = false
 local SpinDelay = 1.5
 GameplayTab:CreateDropdown({
-    Name = "Select Action",
+    Name = "Select Action 🎲",
     Options = {"x10 Summon Banner","Christmas Standard Spin","Christmas Advanced Spin"},
     CurrentOption = {"x10 Summon Banner"},
     MultipleOptions = false,
     Flag = "GameplayAction",
-    Icon = "lucide-dice-5",
     Callback = function(opt) SelectedGameplay = opt[1] end
 })
 GameplayTab:CreateInput({
-    Name = "Spin Delay (seconds)",
+    Name = "Spin Delay ⏱️ (seconds)",
     PlaceholderText = "VD: 1.5 (0.3-60)",
     CurrentValue = tostring(SpinDelay),
-    RemoveTextAfterFocusLost=false,
-    Icon = "lucide-clock",
+    RemoveTextAfterFocusLost = false,
     Callback = function(txt)
-        local v=tonumber(txt)
-        if v and v>0 then SpinDelay=math.clamp(v,0.3,60)
+        local v = tonumber(txt)
+        if v and v > 0 then SpinDelay = math.clamp(v,0.3,60)
         else Rayfield:Notify({Title="Invalid Delay",Content="Delay phải >0",Duration=2}) end
     end
 })
 GameplayTab:CreateToggle({
-    Name="Auto Spin / Summon",
-    CurrentValue=false,
-    Flag="AutoGameplay",
-    Icon="lucide-refresh-cw",
-    Callback=function(v)
-        AutoSpinEnabled=v
+    Name = "Auto Spin / Summon 🔄",
+    CurrentValue = false,
+    Flag = "AutoGameplay",
+    Callback = function(v)
+        AutoSpinEnabled = v
         if v then task.spawn(function()
             while AutoSpinEnabled do
                 if SelectedGameplay then RemoteEvent:FireServer("summon_roll","Standard",10) end
@@ -278,37 +282,37 @@ GameplayTab:CreateToggle({
 })
 
 -- ================= WEBHOOK TAB =================
-local WebTab = Window:CreateTab("Webhook", "lucide-link")
-WebTab:CreateToggle({Name="Enable Webhook",CurrentValue=true,Flag="WebhookEnable",Icon="lucide-check-circle",Callback=function(v) WebhookEnabled=v end})
-WebTab:CreateInput({Name="Webhook URL",CurrentValue=customWebhook,PlaceholderText="Paste Discord webhook",Icon="lucide-link",Callback=function(txt) customWebhook=txt end})
-WebTab:CreateButton({Name="Save Webhook",Icon="lucide-floppy-disk",Callback=function() writefile("custom_webhook.txt",customWebhook) Rayfield:Notify({Title="Saved",Content="Webhook saved",Duration=2}) end})
-WebTab:CreateButton({Name="Test Webhook",Icon="lucide-check-circle",Callback=function()
+local WebTab = Window:CreateTab("🔗 Webhook", 4483362458)
+WebTab:CreateToggle({Name="Enable Webhook ✅", CurrentValue=true, Flag="WebhookEnable", Callback=function(v) WebhookEnabled=v end})
+WebTab:CreateInput({Name="Webhook URL 🔗", CurrentValue=customWebhook, PlaceholderText="Paste Discord webhook", Callback=function(txt) customWebhook=txt end})
+WebTab:CreateButton({Name="💾 Save Webhook", Callback=function() writefile("custom_webhook.txt",customWebhook) Rayfield:Notify({Title="Saved",Content="Webhook saved",Duration=2}) end})
+WebTab:CreateButton({Name="✅ Test Webhook", Callback=function()
     if customWebhook=="" then Rayfield:Notify({Title="Webhook Error",Content="Webhook URL trống",Duration=2}) return end
     if type(s_request)~="function" then Rayfield:Notify({Title="HTTP Error",Content="Executor không hỗ trợ HTTP Request",Duration=3}) return end
-    local testEmbed={title="KazeHub Webhook Test", description="Webhook hoạt động thành công!\n\n👤 Player: **"..lp.Name.."**\n⏱ Time: "..DateTime.now():FormatLocalTime("LLL","en-us"), color=3447003, footer={text="KazeHub Test"}}
+    local testEmbed={title="✅ KazeHub Webhook Test", description="Webhook hoạt động thành công!\n\n👤 Player: **"..lp.Name.."**\n⏱ Time: "..DateTime.now():FormatLocalTime("LLL","en-us"), color=3447003, footer={text="KazeHub Test"}}
     local ok,err=pcall(function() s_request({Url=customWebhook, Method="POST", Headers={["Content-Type"]="application/json"}, Body=HttpService:JSONEncode({username="KazeHub",embeds={testEmbed}})}) end)
     Rayfield:Notify({Title=ok and "Success" or "Failed", Content=ok and "Test webhook sent!" or tostring(err), Duration=2})
 end})
 
 -- ================= MISC TAB =================
-local Misc = Window:CreateTab("Misc", "lucide-settings")
-Misc:CreateLabel("Performance Settings")
-Misc:CreateToggle({Name="FPS Boost",CurrentValue=false,Flag="FPSBoost",Icon="lucide-zap",Callback=function(v)
+local Misc = Window:CreateTab("⚙️ Misc", 4483362458)
+Misc:CreateLabel("⚡ Performance Settings")
+Misc:CreateToggle({Name="FPS Boost 🚀", CurrentValue=false, Flag="FPSBoost", Callback=function(v)
     if v then
-        settings().Rendering.QualityLevel=1
-        Lighting.GlobalShadows=false
+        settings().Rendering.QualityLevel = 1
+        Lighting.GlobalShadows = false
         for _,obj in ipairs(Workspace:GetDescendants()) do
             if obj:IsA("BasePart") then obj.Material=Enum.Material.Plastic obj.Reflectance=0 end
         end
     end
 end})
-Misc:CreateLabel("Utility")
-Misc:CreateToggle({Name="Anti-AFK",CurrentValue=false,Flag="AntiAFK",Icon="lucide-awake",Callback=function(v)
+Misc:CreateLabel("🛡️ Utility")
+Misc:CreateToggle({Name="Anti-AFK 💤", CurrentValue=false, Flag="AntiAFK", Callback=function(v)
     if v then _G.AFK=lp.Idled:Connect(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new(0,0)) end)
     else if _G.AFK then _G.AFK:Disconnect() end end
 end})
-Misc:CreateButton({Name="Save Config Now",Icon="lucide-floppy-disk",Callback=function() Rayfield:SaveConfiguration() Rayfield:Notify({Title="Config",Content="Saved successfully",Duration=2}) end})
-Misc:CreateButton({Name="Rejoin",Icon="lucide-refresh-cw",Callback=function() TeleportService:Teleport(game.PlaceId,lp) end})
+Misc:CreateButton({Name="💾 Save Config Now", Callback=function() Rayfield:SaveConfiguration() Rayfield:Notify({Title="Config",Content="Saved successfully",Duration=2}) end})
+Misc:CreateButton({Name="🔄 Rejoin", Callback=function() TeleportService:Teleport(game.PlaceId,lp) end})
 
 Rayfield:LoadConfiguration()
-print("✅ KAZEHUB LUCIDE UI LOADED")
+print("✅ KAZEHUB BEAUTY UI LOADED")
