@@ -90,7 +90,7 @@ local function getActiveCodes()
         codes = {"2026", "portals", "vampire", "happyholidays", "christmaspresent"}
     end
     return codes
-endend
+end
 
 -- ================= UI PATH (RESULT UI) =================
 local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
