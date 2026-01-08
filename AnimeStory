@@ -266,6 +266,82 @@ ChallengeTab:CreateDropdown({
 })
 local StatusLabel = ChallengeTab:CreateLabel("🔹 Status: Waiting...")
 
+-- ================= SMART AUTO CHALLENGE CORE =================
+
+local function getLiveChallengeData()
+    local ok, data = pcall(function()
+        local ui = workspace.Lobby.ChallengeInfo["Semi-Hourly"].Model.Part.SurfaceGui.Base
+        return {
+            Map = ui.MapName.Text,
+            Debuff = ui.Debuff.Text
+        }
+    end)
+    return ok and data or {Map = "N/A", Debuff = "N/A"}
+end
+
+local function joinChallenge()
+    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    local touch = workspace.Rooms.challenges.Model:FindFirstChild("Touch")
+    local data = getLiveChallengeData()
+
+    if not hrp or not touch or data.Map == "N/A" then return end
+
+    -- Check ignored debuffs
+    for _, skip in ipairs(IgnoredDebuffs) do
+        if data.Debuff:lower():find(skip:lower()) then
+            StatusLabel:Set("⛔ Skipped Debuff: " .. data.Debuff)
+            return
+        end
+    end
+
+    -- Auto equip team slot 1
+    if AutoEquipTeam then
+        RemoteEvent:FireServer("equip_team", 1)
+        task.wait(1)
+    end
+
+    -- Touch challenge door
+    hrp.CFrame = touch.CFrame * CFrame.new(0, 2, 0)
+    firetouchinterest(hrp, touch, 0)
+    firetouchinterest(hrp, touch, 1)
+
+    task.wait(0.6)
+
+    -- Select room
+    RemoteEvent:FireServer(
+        "room_select",
+        data.Map,
+        7,
+        {ChallengeType = "Semi-Hourly", Debuff = data.Debuff}
+    )
+
+    task.wait(0.3)
+    RemoteEvent:FireServer("room_start")
+
+    StatusLabel:Set("✅ Joined: " .. data.Map)
+end
+
+ChallengeTab:CreateToggle({
+    Name = "Smart Auto Challenge 🤖",
+    CurrentValue = false,
+    Flag = "AutoChallenge",
+    Callback = function(v)
+        AutoChallengeEnabled = v
+        if v then
+            task.spawn(function()
+                while AutoChallengeEnabled do
+                    if not isPlayerInBattle() then
+                        local d = getLiveChallengeData()
+                        StatusLabel:Set("🗺 " .. d.Map .. " | ⚠️ " .. d.Debuff)
+                        joinChallenge()
+                    end
+                    task.wait(15)
+                end
+            end)
+        end
+    end
+})
+
 -- ================= GAMEPLAY TAB =================
 local GameplayTab = Window:CreateTab("🎰 Gameplay", 4483362458)
 GameplayTab:CreateLabel("🎯 Summon / Spinner Settings")
@@ -291,20 +367,36 @@ GameplayTab:CreateInput({
         else Rayfield:Notify({Title="Invalid Delay",Content="Delay phải >0",Duration=2}) end
     end
 })
+
+local function doGameplayAction()
+    if SelectedGameplay == "x10 Summon Banner" then
+        RemoteEvent:FireServer("summon_roll", "Standard", 10)
+
+    elseif SelectedGameplay == "Christmas Standard Spin" then
+        RemoteEvent:FireServer("spinner_standard")
+
+    elseif SelectedGameplay == "Christmas Advanced Spin" then
+        RemoteEvent:FireServer("spinner_advanced")
+    end
+end
+
 GameplayTab:CreateToggle({
-    Name = "Auto Spin / Summon 🔄",
-    CurrentValue = false,
-    Flag = "AutoGameplay",
-    Callback = function(v)
-        AutoSpinEnabled = v
-        if v then task.spawn(function()
+Name = "Auto Spin / Summon 🔄",
+CurrentValue = false,
+Flag = "AutoGameplay",
+Callback = function(v)
+    AutoSpinEnabled = v
+    if v then
+        task.spawn(function()
             while AutoSpinEnabled do
-                if SelectedGameplay then RemoteEvent:FireServer("summon_roll","Standard",10) end
+                doGameplayAction()
                 task.wait(SpinDelay)
             end
-        end) end
+        end)
     end
+end
 })
+
 
 -- ================= AUTO REDEEM CODE (SMART) =================
 GameplayTab:CreateLabel("🎁 Smart Giftcodes")
@@ -364,6 +456,75 @@ WebTab:CreateButton({Name="✅ Test Webhook", Callback=function()
     Rayfield:Notify({Title=ok and "Success" or "Failed", Content=ok and "Test webhook sent!" or tostring(err), Duration=2})
 end})
 
+-- ================= FPS BOOST 2 (ADVANCED) =================
+
+local FPS2_Original = {
+    Lighting = {},
+    Materials = {}
+}
+
+local function enableFPSBoost2()
+    -- Lighting cực thấp
+    FPS2_Original.Lighting.GlobalShadows = Lighting.GlobalShadows
+    FPS2_Original.Lighting.Brightness = Lighting.Brightness
+    FPS2_Original.Lighting.FogEnd = Lighting.FogEnd
+
+    Lighting.GlobalShadows = false
+    Lighting.Brightness = 0
+    Lighting.FogEnd = 9e9
+
+    -- Remove post effects
+    for _, v in ipairs(Lighting:GetChildren()) do
+        if v:IsA("PostEffect") then
+            v.Enabled = false
+        end
+    end
+
+    -- Workspace optimizations
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            FPS2_Original.Materials[obj] = obj.Material
+            obj.Material = Enum.Material.Plastic
+            obj.Reflectance = 0
+
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            obj.Transparency = 1
+
+        elseif obj:IsA("ParticleEmitter")
+            or obj:IsA("Trail")
+            or obj:IsA("Beam") then
+            obj.Enabled = false
+        end
+    end
+
+    -- Terrain
+    local terrain = Workspace:FindFirstChildOfClass("Terrain")
+    if terrain then
+        terrain.WaterWaveSize = 0
+        terrain.WaterWaveSpeed = 0
+        terrain.WaterReflectance = 0
+        terrain.WaterTransparency = 1
+    end
+
+    -- Rendering quality
+    settings().Rendering.QualityLevel = 1
+end
+
+local function disableFPSBoost2()
+    -- Restore lighting
+    for k, v in pairs(FPS2_Original.Lighting) do
+        Lighting[k] = v
+    end
+
+    -- Restore materials
+    for obj, mat in pairs(FPS2_Original.Materials) do
+        if obj and obj:IsA("BasePart") then
+            obj.Material = mat
+        end
+    end
+end
+
+
 -- ================= MISC TAB =================
 local Misc = Window:CreateTab("⚙️ Misc", 4483362458)
 Misc:CreateLabel("⚡ Performance Settings")
@@ -376,6 +537,29 @@ Misc:CreateToggle({Name="FPS Boost 🚀", CurrentValue=false, Flag="FPSBoost", C
         end
     end
 end})
+Misc:CreateToggle({
+    Name = "FPS Boost 2 (Advanced) 🔥",
+    CurrentValue = false,
+    Flag = "FPSBoost2",
+    Callback = function(v)
+        if v then
+            enableFPSBoost2()
+            Rayfield:Notify({
+                Title = "FPS Boost 2",
+                Content = "Đã bật FPS Boost cao cấp 🚀",
+                Duration = 2
+            })
+        else
+            disableFPSBoost2()
+            Rayfield:Notify({
+                Title = "FPS Boost 2",
+                Content = "Đã tắt FPS Boost 2",
+                Duration = 2
+            })
+        end
+    end
+})
+
 Misc:CreateLabel("🛡️ Utility")
 Misc:CreateToggle({Name="Anti-AFK 💤", CurrentValue=false, Flag="AntiAFK", Callback=function(v)
     if v then _G.AFK=lp.Idled:Connect(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new(0,0)) end)
