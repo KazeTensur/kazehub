@@ -1,16 +1,13 @@
--- ================= KAZEHUB CLEAN FINAL + BALANCE =================
+-- ================= KAZEHUB AAA UI + LUCIDE + GRADIENT =================
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
+-- Window
 local Window = Rayfield:CreateWindow({
-    Name = "KazeHub!",
-    Icon = 0,
+    Name = "✨ KazeHub AAA",
+    Icon = "lucide-rocket",
     LoadingTitle = "Welcome to KazeHub!",
     LoadingSubtitle = "by Kaze",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "Kazehub",
-        FileName = "kazehub"
-    }
+    ConfigurationSaving = {Enabled=true, FolderName="Kazehub", FileName="kazehub"}
 })
 
 -- ================= SERVICES =================
@@ -23,485 +20,180 @@ local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 
-local RemoteEvent = game:GetService("ReplicatedStorage")
-    :WaitForChild("API")
-    :WaitForChild("Utils")
-    :WaitForChild("network")
-    :WaitForChild("RemoteEvent")
-
+local RemoteEvent = game:GetService("ReplicatedStorage"):WaitForChild("API"):WaitForChild("Utils"):WaitForChild("network"):WaitForChild("RemoteEvent")
 local WorldsFolder = workspace:WaitForChild("Worlds", 10)
 
 local s_request
-pcall(function()
-    s_request = http_request
-end)
-pcall(function()
-    if not s_request then
-        s_request = request
-    end
-end)
-pcall(function()
-    if not s_request and http then
-        s_request = http.request
-    end
-end)
+pcall(function() s_request = http_request end)
+pcall(function() if not s_request then s_request = request end end)
+pcall(function() if not s_request and http then s_request = http.request end end)
 
 -- ================= STATE =================
-local SelectedMode = "Story"
-local SelectedMap = nil
-local SelectedAct = "1"
-local SelectedDifficulty = "Normal"
+local SelectedMode, SelectedMap, SelectedAct, SelectedDifficulty = "Story", nil, "1", "Normal"
+local WebhookEnabled, customWebhook = true, ""
 
-local WebhookEnabled = true
-local customWebhook = ""
-
--- ================= LOAD WEBHOOK =================
-pcall(function()
-    if isfile("custom_webhook.txt") then
-        customWebhook = readfile("custom_webhook.txt")
-    end
-end)
+-- Load webhook if exists
+pcall(function() if isfile("custom_webhook.txt") then customWebhook = readfile("custom_webhook.txt") end end)
 
 -- ================= HELPERS =================
 local function getSortedMaps()
     local list = {}
-    for _, m in ipairs(WorldsFolder:GetChildren()) do
-        table.insert(list, m.Name)
-    end
+    for _, m in ipairs(WorldsFolder:GetChildren()) do table.insert(list,m.Name) end
     table.sort(list)
     return list
 end
-
 local function isPlayerInBattle()
     local gui = lp.PlayerGui:FindFirstChild("battle")
     return gui and gui.Enabled
 end
 
--- ================= UI PATH (RESULT UI) =================
+-- ================= RESULT UI =================
 local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
 local content = resultUI:WaitForChild("Base"):WaitForChild("Content")
 local resultLabel  = content:WaitForChild("Result")
 local rewardFolder = content:WaitForChild("Rewards")
 local stageLabel   = content:WaitForChild("Stage")
 
--- ================= WEBHOOK CORE (DELTA SAFE + REWARDS + BALANCE) =================
+-- ================= WEBHOOK CORE =================
 local function getMatchRewards()
     local rewards = {}
     for _, item in ipairs(rewardFolder:GetChildren()) do
         local qty = item:FindFirstChild("Quantity")
-        if qty and qty:IsA("TextLabel") and qty.Text ~= "" then
-            table.insert(rewards, "• **" .. item.Name .. "**: " .. qty.Text)
+        if qty and qty:IsA("TextLabel") and qty.Text~="" then
+            table.insert(rewards,"• **"..item.Name.."**: "..qty.Text)
         end
     end
-    return #rewards > 0 and table.concat(rewards, "\n") or "Không có phần thưởng"
+    return #rewards>0 and table.concat(rewards,"\n") or "Không có phần thưởng"
 end
-
-local function getTotalBalance()
-    local data = lp:FindFirstChild("Data")
-    if not data then return "N/A" end
-    local coins = data:FindFirstChild("Coins")
-    local gems  = data:FindFirstChild("Gems")
-    return string.format("💰 Coins: %s\n💎 Gems: %s", coins and coins.Value or 0, gems and gems.Value or 0)
-end
-
--- ================= WEBHOOK CORE (BALANCE + ITEMS) =================
 local function sendResultWebhook()
-    if not WebhookEnabled then return end
-    if customWebhook == "" or customWebhook == " " then return end
-    if type(s_request) ~= "function" then return end
-
-    -- Lấy Balance
-    local data = lp:FindFirstChild("Data")
-    local coins = data and data:FindFirstChild("Coins")
-    local gems  = data and data:FindFirstChild("Gems")
-    local balanceText = string.format("💰 Coins: %s\n💎 Gems: %s", coins and coins.Value or 0, gems and gems.Value or 0)
-
-    -- Lấy Items
-    local itemsFolder = lp.PlayerGui:FindFirstChild("main") 
-                        and lp.PlayerGui.main:FindFirstChild("Inventory") 
-                        and lp.PlayerGui.main.Inventory:FindFirstChild("Base") 
-                        and lp.PlayerGui.main.Inventory.Base:FindFirstChild("Content") 
-                        and lp.PlayerGui.main.Inventory.Base.Content:FindFirstChild("Items")
-
-    local traitText = ""
+    if not WebhookEnabled or customWebhook=="" or type(s_request)~="function" then return end
+    local data=lp:FindFirstChild("Data")
+    local coins=data and data:FindFirstChild("Coins")
+    local gems=data and data:FindFirstChild("Gems")
+    local balanceText=string.format("💰 Coins: %s\n💎 Gems: %s",coins and coins.Value or 0,gems and gems.Value or 0)
+    local itemsFolder=lp.PlayerGui:FindFirstChild("main") and lp.PlayerGui.main:FindFirstChild("Inventory") and lp.PlayerGui.main.Inventory:FindFirstChild("Base") and lp.PlayerGui.main.Inventory.Base:FindFirstChild("Content") and lp.PlayerGui.main.Inventory.Base.Content:FindFirstChild("Items")
+    local traitText=""
     if itemsFolder then
-        local traitTokens = itemsFolder:FindFirstChild("Trait Tokens")
-        local ice = itemsFolder:FindFirstChild("Ice")
-        local stocking = itemsFolder:FindFirstChild("Christmas Stocking")
-
-        local traitQty = traitTokens and traitTokens:FindFirstChild("Quantity") and traitTokens.Quantity.Text or "0"
-        local iceQty = ice and ice:FindFirstChild("Quantity") and ice.Quantity.Text or "0"
-        local stockQty = stocking and stocking:FindFirstChild("Quantity") and stocking.Quantity.Text or "0"
-
-        traitText = string.format("🎯 Trait Tokens: %s\n❄️ Ice: %s\n🎁 Christmas Stocking: %s", traitQty, iceQty, stockQty)
-    else
-        traitText = "🎯 Trait Tokens: 0\n❄️ Ice: 0\n🎁 Christmas Stocking: 0"
-    end
-
-    -- Lấy Rewards
-    local rewardText = getMatchRewards() -- dùng hàm đã định nghĩa
-
-
-    -- Proxy chống block Delta
-    local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
-
-    local payload = {
-        content = "KazeHub Match Result",
-        embeds = {{
-            title = (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory"))
-                and "🏆 VICTORY" or "💀 DEFEAT",
-            color = (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory"))
-                and 3066993 or 15158332,
-            description =
-                "👤 Player: **"..lp.Name.."**\n"..
-                "🗺 Stage: **"..stageLabel.Text.."**",
-            fields = {
-                {name = "🎁 Rewards", value = rewardText, inline = false},
-                {name = "💰 Balance", value = balanceText, inline = false},
-                {name = "🛠️ Items", value = traitText, inline = false}
-            },
-            footer = { text = "KazeHub | Delta X Safe" }
-        }}
+        local traitTokens=itemsFolder:FindFirstChild("Trait Tokens")
+        local ice=itemsFolder:FindFirstChild("Ice")
+        local stocking=itemsFolder:FindFirstChild("Christmas Stocking")
+        traitText=string.format("🎯 Trait Tokens: %s\n❄️ Ice: %s\n🎁 Christmas Stocking: %s",
+            traitTokens and traitTokens:FindFirstChild("Quantity") and traitTokens.Quantity.Text or "0",
+            ice and ice:FindFirstChild("Quantity") and ice.Quantity.Text or "0",
+            stocking and stocking:FindFirstChild("Quantity") and stocking.Quantity.Text or "0")
+    else traitText="🎯 Trait Tokens: 0\n❄️ Ice: 0\n🎁 Christmas Stocking: 0" end
+    local rewardText=getMatchRewards()
+    local proxyUrl=customWebhook:gsub("discord.com","webhook.lewisakura.moe")
+    local payload={
+        content="KazeHub Match Result",
+        embeds={{title=(resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory")) and "🏆 VICTORY" or "💀 DEFEAT",
+            color=(resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory")) and 3066993 or 15158332,
+            description="👤 Player: **"..lp.Name.."**\n🗺 Stage: **"..stageLabel.Text.."**",
+            fields={{name="🎁 Rewards",value=rewardText,inline=false},{name="💰 Balance",value=balanceText,inline=false},{name="🛠️ Items",value=traitText,inline=false}},
+            footer={text="✨ KazeHub | Delta X Safe"}}}
     }
-
     task.spawn(function()
-        pcall(function()
-            s_request({
-                Url = proxyUrl,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode(payload)
-            })
-        end)
+        pcall(function() s_request({Url=proxyUrl,Method="POST",Headers={["Content-Type"]="application/json"},Body=HttpService:JSONEncode(payload)}) end)
     end)
 end
 
 -- ================= RESULT UI TRIGGER =================
-local sent = false
+local sent=false
 resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
     if resultUI.Visible then
         if sent then return end
-        sent = true
-        task.wait(2) -- đợi game update reward
+        sent=true
+        task.wait(2)
         sendResultWebhook()
         print("📨 Webhook sent via Result UI")
-    else
-        sent = false
+    else sent=false end
+end)
+
+-- ================= HELPER GRADIENT TOGGLE =================
+local function createGradientToggle(tab, name, default, flag, icon, callback)
+    tab:CreateToggle({
+        Name=name,
+        CurrentValue=default,
+        Flag=flag,
+        Icon=icon,
+        Callback=function(v)
+            -- Gradient + hover effect (via Rayfield) - giả lập bằng màu
+            local toggleUI=tab.Flags[flag].Toggle
+            if toggleUI then
+                toggleUI.BackgroundColor3=v and Color3.fromRGB(72,196,255) or Color3.fromRGB(100,100,100)
+                toggleUI.MouseEnter:Connect(function()
+                    toggleUI.BackgroundColor3=v and Color3.fromRGB(100,225,255) or Color3.fromRGB(150,150,150)
+                end)
+                toggleUI.MouseLeave:Connect(function()
+                    toggleUI.BackgroundColor3=v and Color3.fromRGB(72,196,255) or Color3.fromRGB(100,100,100)
+                end)
+            end
+            callback(v)
+        end
+    })
+end
+
+-- ================= MAIN TAB =================
+local Main=Window:CreateTab("Lobby / Farm","lucide-map")
+Main:CreateLabel("Mode / Map Selection")
+Main:CreateDropdown({Name="Select Mode",Options={"Story","Raid"},CurrentOption={"Story"},Flag="Mode",Icon="lucide-star",Callback=function(opt) SelectedMode=opt[1] end})
+Main:CreateDropdown({Name="Select Map",Options=getSortedMaps(),CurrentOption={getSortedMaps()[1]},Flag="Map",Icon="lucide-map-pin",Callback=function(opt) SelectedMap=opt[1] end})
+Main:CreateDropdown({Name="Select Act",Options={"1","2","3","4","5","6","7","8","9","10"},CurrentOption={"1"},Flag="Act",Icon="lucide-hash",Callback=function(opt) SelectedAct=opt[1] end})
+Main:CreateDropdown({Name="Difficulty",Options={"Normal","Hard","Nightmare"},CurrentOption={"Normal"},Flag="Difficulty",Icon="lucide-sliders",Callback=function(opt) SelectedDifficulty=opt[1] end})
+createGradientToggle(Main,"Auto Join & Start",false,"AutoJoinStart","lucide-rocket",function(v)
+    if v and not isPlayerInBattle() then
+        RemoteEvent:FireServer("battle_start","story",SelectedMap,tonumber(SelectedAct),SelectedDifficulty)
     end
 end)
 
--- ================= MAIN TAB =================
-local Main = Window:CreateTab("Lobby / Farm", 4483362458)
-
-Main:CreateDropdown({
-    Name = "Select Mode",
-    Options = {"Story","Raid"},
-    CurrentOption = {"Story"},
-    Flag = "Mode",
-    Callback = function(opt)
-        SelectedMode = opt[1]
-    end
-})
-
-Main:CreateDropdown({
-    Name = "Select Map",
-    Options = getSortedMaps(),
-    CurrentOption = {getSortedMaps()[1]},
-    Flag = "Map",
-    Callback = function(opt)
-        SelectedMap = opt[1]
-    end
-})
-
-Main:CreateDropdown({
-    Name = "Select Act",
-    Options = {"1","2","3","4","5","6","7","8","9","10"},
-    CurrentOption = {"1"},
-    Flag = "Act",
-    Callback = function(opt)
-        SelectedAct = opt[1]
-    end
-})
-
-Main:CreateDropdown({
-    Name = "Difficulty",
-    Options = {"Normal","Hard","Nightmare"},
-    CurrentOption = {"Normal"},
-    Flag = "Difficulty",
-    Callback = function(opt)
-        SelectedDifficulty = opt[1]
-    end
-})
-
-Main:CreateToggle({
-    Name = "Auto Join & Start",
-    CurrentValue = false,
-    Flag = "AutoJoinStart",
-    Callback = function(v)
-        if v and not isPlayerInBattle() then
-            RemoteEvent:FireServer("battle_start","story",SelectedMap,tonumber(SelectedAct),SelectedDifficulty)
-        end
-    end
-})
-
 -- ================= CHALLENGE TAB =================
-local ChallengeTab = Window:CreateTab("Challenges", 4483362458)
-
-local AutoChallengeEnabled = false
-local AutoEquipTeam = false
-local IgnoredDebuffs = {}
-
-ChallengeTab:CreateLabel("⚠️ Requires saved team in SLOT 1")
-
-ChallengeTab:CreateToggle({
-    Name = "Auto Equip Team (Slot 1)",
-    CurrentValue = false,
-    Flag = "AutoEquipTeam",
-    Callback = function(v)
-        AutoEquipTeam = v
-    end
-})
-
-ChallengeTab:CreateDropdown({
-    Name = "Ignore Debuffs",
-    Options = {
-        "Double Stats",
-        "Weakened Units",
-        "Burn Enemies",
-        "Poison Enemies"
-    },
-    MultipleOptions = true,
-    CurrentOption = {},
-    Flag = "IgnoredDebuffs",
-    Callback = function(opts)
-        IgnoredDebuffs = opts
-    end
-})
-
-local StatusLabel = ChallengeTab:CreateLabel("Status: Waiting...")
-
-local function getLiveChallengeData()
-    local ok, data = pcall(function()
-        local ui = workspace.Lobby.ChallengeInfo["Semi-Hourly"].Model.Part.SurfaceGui.Base
-        return {Map = ui.MapName.Text, Debuff = ui.Debuff.Text}
-    end)
-    return ok and data or {Map = "N/A", Debuff = "N/A"}
-end
-
-local function joinChallenge()
-    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    local touch = workspace.Rooms.challenges.Model.Touch
-    local data = getLiveChallengeData()
-
-    if not hrp or not touch or data.Map == "N/A" then return end
-    for _, skip in ipairs(IgnoredDebuffs) do
-        if data.Debuff:find(skip) then return end
-    end
-
-    if AutoEquipTeam then
-        RemoteEvent:FireServer("equip_team", 1)
-        task.wait(1)
-    end
-
-    hrp.CFrame = touch.CFrame * CFrame.new(0, 2, 0)
-    firetouchinterest(hrp, touch, 0)
-    firetouchinterest(hrp, touch, 1)
-
-    task.wait(0.6)
-    RemoteEvent:FireServer("room_select", data.Map, 7, {ChallengeType="Semi-Hourly", Debuff=data.Debuff})
-    task.wait(0.3)
-    RemoteEvent:FireServer("room_start")
-end
-
-ChallengeTab:CreateToggle({
-    Name = "Smart Auto Challenge",
-    CurrentValue = false,
-    Flag = "AutoChallenge",
-    Callback = function(v)
-        AutoChallengeEnabled = v
-        if v then
-            task.spawn(function()
-                while AutoChallengeEnabled do
-                    if not isPlayerInBattle() then
-                        local d = getLiveChallengeData()
-                        StatusLabel:Set("Map: " .. d.Map .. " | " .. d.Debuff)
-                        joinChallenge()
-                    end
-                    task.wait(15)
-                end
-            end)
-        end
-    end
-})
+local ChallengeTab=Window:CreateTab("Challenges","lucide-shield")
+ChallengeTab:CreateLabel("Requires saved team in SLOT 1")
+local AutoChallengeEnabled=false
+local AutoEquipTeam=false
+local IgnoredDebuffs={}
+createGradientToggle(ChallengeTab,"Auto Equip Team (Slot 1)",false,"AutoEquipTeam","lucide-shield-check",function(v) AutoEquipTeam=v end)
+ChallengeTab:CreateDropdown({Name="Ignore Debuffs",Options={"Double Stats","Weakened Units","Burn Enemies","Poison Enemies"},MultipleOptions=true,CurrentOption={},Flag="IgnoredDebuffs",Icon="lucide-x-circle",Callback=function(opts) IgnoredDebuffs=opts end})
+local StatusLabel=ChallengeTab:CreateLabel("Status: Waiting...")
 
 -- ================= GAMEPLAY TAB =================
-local GameplayTab = Window:CreateTab("Gameplay", 4483362458)
-
-local SelectedGameplay = "x10 Summon Banner"
-local AutoSpinEnabled = false
-local SpinDelay = 1.5
-
-GameplayTab:CreateDropdown({
-    Name = "Select Action",
-    Options = {"x10 Summon Banner","Christmas Standard Spin","Christmas Advanced Spin"},
-    CurrentOption = {"x10 Summon Banner"},
-    MultipleOptions = false,
-    Flag = "GameplayAction",
-    Callback = function(opt) SelectedGameplay = opt[1] end
-})
-
-GameplayTab:CreateInput({
-    Name = "Spin Delay (seconds)",
-    PlaceholderText = "VD: 1.5",
-    CurrentValue = tostring(SpinDelay),
-    Flag = "SpinDelayInput",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(txt)
-        local v = tonumber(txt)
-        if v and v > 0 then
-            SpinDelay = math.clamp(v, 0.3, 60)
-        else
-            Rayfield:Notify({Title="Invalid Delay",Content="Delay phải là số > 0",Duration=2})
-        end
-    end
-})
-
-local function doGameplayAction()
-    if SelectedGameplay == "x10 Summon Banner" then
-        RemoteEvent:FireServer("summon_roll","Standard",10)
-    elseif SelectedGameplay == "Christmas Standard Spin" then
-        RemoteEvent:FireServer("spinner_standard")
-    elseif SelectedGameplay == "Christmas Advanced Spin" then
-        RemoteEvent:FireServer("spinner_advanced")
-    end
-end
-
-GameplayTab:CreateToggle({
-    Name = "Auto Spin / Summon",
-    CurrentValue = false,
-    Flag = "AutoGameplay",
-    Callback = function(v)
-        AutoSpinEnabled = v
-        if v then
-            task.spawn(function()
-                while AutoSpinEnabled do
-                    doGameplayAction()
-                    task.wait(SpinDelay)
-                end
-            end)
-        end
-    end
-})
+local GameplayTab=Window:CreateTab("Gameplay","lucide-dice-5")
+GameplayTab:CreateLabel("Summon / Spinner Settings")
+local SelectedGameplay="x10 Summon Banner"
+local AutoSpinEnabled=false
+local SpinDelay=1.5
+GameplayTab:CreateDropdown({Name="Select Action",Options={"x10 Summon Banner","Christmas Standard Spin","Christmas Advanced Spin"},CurrentOption={"x10 Summon Banner"},MultipleOptions=false,Flag="GameplayAction",Icon="lucide-dice-5",Callback=function(opt) SelectedGameplay=opt[1] end})
+GameplayTab:CreateInput({Name="Spin Delay (seconds)",PlaceholderText="VD: 1.5 (0.3-60)",CurrentValue=tostring(SpinDelay),RemoveTextAfterFocusLost=false,Icon="lucide-clock",Callback=function(txt) local v=tonumber(txt) if v and v>0 then SpinDelay=math.clamp(v,0.3,60) else Rayfield:Notify({Title="Invalid Delay",Content="Delay phải >0",Duration=2}) end end})
+createGradientToggle(GameplayTab,"Auto Spin / Summon",false,"AutoGameplay","lucide-refresh-cw",function(v) AutoSpinEnabled=v if v then task.spawn(function() while AutoSpinEnabled do if SelectedGameplay then RemoteEvent:FireServer("summon_roll","Standard",10) end task.wait(SpinDelay) end end) end end)
 
 -- ================= WEBHOOK TAB =================
-local WebTab = Window:CreateTab("Webhook", 4483362458)
-
-WebTab:CreateToggle({
-    Name = "Enable Webhook",
-    CurrentValue = true,
-    Flag = "WebhookEnable",
-    Callback = function(v) WebhookEnabled = v end
-})
-
-WebTab:CreateInput({
-    Name = "Webhook URL",
-    CurrentValue = customWebhook,
-    PlaceholderText = "Paste Discord webhook",
-    Callback = function(txt) customWebhook = txt end
-})
-
-WebTab:CreateButton({
-    Name = "Save Webhook",
-    Callback = function()
-        writefile("custom_webhook.txt", customWebhook)
-        Rayfield:Notify({Title="Saved",Content="Webhook saved",Duration=2})
-    end
-})
-
-WebTab:CreateButton({
-    Name = "Test Webhook",
-    Callback = function()
-        if customWebhook == "" then
-            Rayfield:Notify({Title="Webhook Error",Content="Webhook URL trống",Duration=2})
-            return
-        end
-        if type(s_request) ~= "function" then
-            Rayfield:Notify({Title="HTTP Error",Content="Executor không hỗ trợ HTTP Request",Duration=3})
-            return
-        end
-        local testEmbed = {
-            title = "✅ KazeHub Webhook Test",
-            description = "Webhook hoạt động thành công!\n\n👤 Player: **"..lp.Name.."**\n⏱ Time: "..DateTime.now():FormatLocalTime("LLL","en-us"),
-            color = 3447003,
-            footer = { text = "KazeHub Test" }
-        }
-        local ok, err = pcall(function()
-            s_request({
-                Url = customWebhook,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode({username="KazeHub",embeds={testEmbed}})
-            })
-        end)
-        Rayfield:Notify({
-            Title = ok and "Success" or "Failed",
-            Content = ok and "Test webhook sent!" or tostring(err),
-            Duration = 2
-        })
-    end
-})
+local WebTab=Window:CreateTab("Webhook","lucide-link")
+createGradientToggle(WebTab,"Enable Webhook",true,"WebhookEnable","lucide-check-circle",function(v) WebhookEnabled=v end)
+WebTab:CreateInput({Name="Webhook URL",CurrentValue=customWebhook,PlaceholderText="Paste Discord webhook",Icon="lucide-link",Callback=function(txt) customWebhook=txt end})
+WebTab:CreateButton({Name="Save Webhook",Icon="lucide-floppy-disk",Callback=function() writefile("custom_webhook.txt",customWebhook) Rayfield:Notify({Title="Saved",Content="Webhook saved",Duration=2}) end})
+WebTab:CreateButton({Name="Test Webhook",Icon="lucide-check-circle",Callback=function()
+    if customWebhook=="" then Rayfield:Notify({Title="Webhook Error",Content="Webhook URL trống",Duration=2}) return end
+    if type(s_request)~="function" then Rayfield:Notify({Title="HTTP Error",Content="Executor không hỗ trợ HTTP Request",Duration=3}) return end
+    local testEmbed={title="KazeHub Webhook Test", description="Webhook hoạt động thành công!\n\n👤 Player: **"..lp.Name.."**\n⏱ Time: "..DateTime.now():FormatLocalTime("LLL","en-us"), color=3447003, footer={text="KazeHub Test"}}
+    local ok,err=pcall(function() s_request({Url=customWebhook, Method="POST", Headers={["Content-Type"]="application/json"}, Body=HttpService:JSONEncode({username="KazeHub",embeds={testEmbed}})}) end)
+    Rayfield:Notify({Title=ok and "Success" or "Failed", Content=ok and "Test webhook sent!" or tostring(err), Duration=2})
+end})
 
 -- ================= MISC TAB =================
-local Misc = Window:CreateTab("Misc", 4483362458)
-
-Misc:CreateToggle({
-    Name = "FPS Boost",
-    CurrentValue = false,
-    Flag = "FPSBoost",
-    Callback = function(v)
-        if v then
-            settings().Rendering.QualityLevel = 1
-            Lighting.GlobalShadows = false
-            for _, obj in ipairs(Workspace:GetDescendants()) do
-                if obj:IsA("BasePart") then
-                    obj.Material = Enum.Material.Plastic
-                    obj.Reflectance = 0
-                end
-            end
-        end
+local Misc=Window:CreateTab("Misc","lucide-settings")
+Misc:CreateLabel("Performance Settings")
+createGradientToggle(Misc,"FPS Boost",false,"FPSBoost","lucide-zap",function(v)
+    if v then
+        settings().Rendering.QualityLevel=1
+        Lighting.GlobalShadows=false
+        for _,obj in ipairs(Workspace:GetDescendants()) do if obj:IsA("BasePart") then obj.Material=Enum.Material.Plastic obj.Reflectance=0 end end
     end
-})
-
-Misc:CreateToggle({
-    Name = "Anti-AFK",
-    CurrentValue = false,
-    Flag = "AntiAFK",
-    Callback = function(v)
-        if v then
-            _G.AFK = lp.Idled:Connect(function()
-                VirtualUser:CaptureController()
-                VirtualUser:ClickButton2(Vector2.new(0,0))
-            end)
-        else
-            if _G.AFK then _G.AFK:Disconnect() end
-        end
-    end
-})
-
-Misc:CreateButton({
-    Name = "Save Config Now",
-    Callback = function()
-        Rayfield:SaveConfiguration()
-        Rayfield:Notify({Title="Config",Content="Saved successfully",Duration=2})
-    end
-})
-
-Misc:CreateButton({
-    Name = "Rejoin",
-    Callback = function()
-        TeleportService:Teleport(game.PlaceId, lp)
-    end
-})
+end)
+createGradientToggle(Misc,"Anti-AFK",false,"AntiAFK","lucide-awake",function(v)
+    if v then _G.AFK=lp.Idled:Connect(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new(0,0)) end) else if _G.AFK then _G.AFK:Disconnect() end end
+end)
+Misc:CreateButton({Name="Save Config Now",Icon="lucide-floppy-disk",Callback=function() Rayfield:SaveConfiguration() Rayfield:Notify({Title="Config",Content="Saved successfully",Duration=2}) end})
+Misc:CreateButton({Name="Rejoin",Icon="lucide-refresh-cw",Callback=function() TeleportService:Teleport(game.PlaceId,lp) end})
 
 Rayfield:LoadConfiguration()
-print("✅ KAZEHUB CLEAN FINAL + BALANCE LOADED")
+print("✅ KAZEHUB AAA UI LOADED")
