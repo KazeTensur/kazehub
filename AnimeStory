@@ -67,6 +67,31 @@ local function isPlayerInBattle()
     return gui and gui.Enabled
 end
 
+--// CODES
+local function getActiveCodes()
+    local codes = {}
+    -- Thêm WaitForChild để đợi module tồn tại trước khi require
+    local codesPath = game:GetService("ReplicatedStorage"):WaitForChild("API", 5):WaitForChild("codes", 5)
+
+    local success, codeModule = pcall(function() 
+        return require(codesPath) 
+    end)
+
+    if success and codeModule and codeModule.Codes then
+        local currentTime = os.time()
+        for codeName, data in pairs(codeModule.Codes) do
+            -- Kiểm tra hạn dùng
+            if data.Expires and data.Expires > currentTime then
+                table.insert(codes, codeName)
+            end
+        end
+    else
+        -- Dự phòng nếu không tìm thấy module
+        codes = {"2026", "portals", "vampire", "happyholidays", "christmaspresent"}
+    end
+    return codes
+endend
+
 -- ================= UI PATH (RESULT UI) =================
 local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
 local content = resultUI:WaitForChild("Base"):WaitForChild("Content")
@@ -278,6 +303,51 @@ GameplayTab:CreateToggle({
                 task.wait(SpinDelay)
             end
         end) end
+    end
+})
+
+-- ================= AUTO REDEEM CODE (SMART) =================
+GameplayTab:CreateLabel("🎁 Smart Giftcodes")
+
+GameplayTab:CreateButton({
+    Name = "Redeem All Active Codes 🎫",
+    Callback = function()
+        local activeCodes = getActiveCodes()
+        for _, code in ipairs(activeCodes) do
+            task.spawn(function()
+                RemoteEvent:FireServer("codes", code)
+            end)
+            task.wait(0.5)
+        end
+        Rayfield:Notify({
+            Title = "Success",
+            Content = "Đã quét và nhập " .. #activeCodes .. " code còn hạn!",
+            Duration = 3
+        })
+    end
+})
+
+local AutoRedeemLoop = false
+GameplayTab:CreateToggle({
+    Name = "Auto Update & Redeem 🔁",
+    CurrentValue = false,
+    Flag = "AutoRedeemSmart",
+    Callback = function(v)
+        AutoRedeemLoop = v
+        if v then
+            task.spawn(function()
+                while AutoRedeemLoop do
+                    local activeCodes = getActiveCodes()
+                    for _, code in ipairs(activeCodes) do
+                        if not AutoRedeemLoop then break end
+                        RemoteEvent:FireServer("codes", code)
+                        task.wait(1)
+                    end
+                    -- Đợi 10 phút quét lại một lần xem game có update code mới không
+                    task.wait(600)
+                end
+            end)
+        end
     end
 })
 
