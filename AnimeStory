@@ -203,15 +203,12 @@ end)
 local Main = Window:CreateTab("🗺 Lobby / Farm", 4483362458)
 
 Main:CreateLabel("🌟 Mode / Map Selection")
-Main:CreateDropdown({
-Name = "Select Mode 🌟",
-Options = {"Story","Raid"},
-CurrentOption = {"Story"},
-Flag = "Mode",
-Callback = function(opt)
-    SelectedMode = opt[1]
+local MapDropdown
 
-    if SelectedMode == "Raid" then
+local function refreshMapByMode(mode)
+    if not MapDropdown then return end
+
+    if mode == "Raid" then
         MapDropdown:Refresh(RaidMaps, true)
         SelectedMap = RaidMaps[1]
         MapDropdown:Set({RaidMaps[1]})
@@ -222,19 +219,28 @@ Callback = function(opt)
         MapDropdown:Set({maps[1]})
     end
 end
-})
 
-local MapDropdown
+Main:CreateDropdown({
+Name = "Select Mode 🌟",
+Options = {"Story","Raid"},
+CurrentOption = {"Story"},
+Flag = "Mode",
+Callback = function(opt)
+SelectedMode = opt[1]
+refreshMapByMode(SelectedMode)
+end
 
 MapDropdown = Main:CreateDropdown({
-Name = "Select Map 🗺️",
-Options = getSortedMaps(),
-CurrentOption = {},
-Flag = "Map",
-Callback = function(opt)
-    SelectedMap = opt[1]
-end
-})
+        Name = "Select Map 🗺️",
+        Options = getSortedMaps(),
+        CurrentOption = {},
+        Flag = "Map",
+        Callback = function(opt)
+            SelectedMap = opt[1]
+        end
+    })
+
+        refreshMapByMode(SelectedMode)
 
 Main:CreateDropdown({
     Name = "Select Act 🔢",
