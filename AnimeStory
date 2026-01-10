@@ -229,6 +229,7 @@ Callback = function(opt)
 SelectedMode = opt[1]
 refreshMapByMode(SelectedMode)
 end
+})
 
 MapDropdown = Main:CreateDropdown({
         Name = "Select Map 🗺️",
