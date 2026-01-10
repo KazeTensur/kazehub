@@ -41,7 +41,7 @@ local SelectedMode = "Story"
 local SelectedMap = nil
 local SelectedAct = "1"
 local SelectedDifficulty = "Normal"
-
+local RaidMaps = {"Vastora Realm","Ember Village","Power Arena"}
 local WebhookEnabled = true
 local customWebhook = ""
 
@@ -208,15 +208,34 @@ Main:CreateDropdown({
     Options = {"Story","Raid"},
     CurrentOption = {"Story"},
     Flag = "Mode",
-    Callback = function(opt) SelectedMode = opt[1] end
+    Callback = function(opt)
+        SelectedMode = opt[1]
+
+        if MapDropdown then
+            if SelectedMode == "Raid" then
+                MapDropdown:Refresh(RaidMaps, true)
+                SelectedMap = RaidMaps[1]
+            else
+                local maps = getSortedMaps()
+                MapDropdown:Refresh(maps, true)
+                SelectedMap = maps[1]
+            end
+        end
+    end
 })
-Main:CreateDropdown({
-    Name = "Select Map 🗺️",
-    Options = getSortedMaps(),
-    CurrentOption = {getSortedMaps()[1]},
-    Flag = "Map",
-    Callback = function(opt) SelectedMap = opt[1] end
+
+local MapDropdown
+
+MapDropdown = Main:CreateDropdown({
+Name = "Select Map 🗺️",
+Options = getSortedMaps(),
+CurrentOption = {getSortedMaps()[1]}
+Flag = "Map",
+Callback = function(opt)
+    SelectedMap = opt[1]
+end
 })
+
 Main:CreateDropdown({
     Name = "Select Act 🔢",
     Options = {"1","2","3","4","5","6","7","8","9","10"},
@@ -232,14 +251,42 @@ Main:CreateDropdown({
     Callback = function(opt) SelectedDifficulty = opt[1] end
 })
 Main:CreateToggle({
-    Name = "Auto Join & Start 🚀",
-    CurrentValue = false,
-    Flag = "AutoJoinStart",
-    Callback = function(v)
-        if v and not isPlayerInBattle() then
-            RemoteEvent:FireServer("battle_start","story",SelectedMap,tonumber(SelectedAct),SelectedDifficulty)
+Name = "Auto Join & Start 🚀",
+CurrentValue = false,
+Flag = "AutoJoinStart",
+Callback = function(v)
+if not v or isPlayerInBattle() then return end
+
+if SelectedMode == "Story" then
+    RemoteEvent:FireServer(
+        "battle_start",
+        "story",
+        SelectedMap,
+        tonumber(SelectedAct),
+        SelectedDifficulty
+    )
+
+elseif SelectedMode == "Raid" then
+    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local raidFolder = workspace:WaitForChild("Rooms"):WaitForChild("raid")
+    for _, room in ipairs(raidFolder:GetChildren()) do
+        local touch = room:FindFirstChild("Touch", true)
+        if touch then
+            firetouchinterest(hrp, touch, 0)
+            task.wait(0.1)
+            firetouchinterest(hrp, touch, 1)
+
+            task.wait(0.4)
+            RemoteEvent:FireServer("room_select", SelectedMap, 1)
+            task.wait(0.3)
+            RemoteEvent:FireServer("room_start")
+            break
         end
     end
+end
+end
 })
 
 -- ================= CHALLENGE TAB =================
