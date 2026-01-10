@@ -55,10 +55,14 @@ end)
 -- ================= HELPERS =================
 local function getSortedMaps()
     local list = {}
-    for _, m in ipairs(WorldsFolder:GetChildren()) do
-        table.insert(list, m.Name)
+    if WorldsFolder then
+        for _, m in ipairs(WorldsFolder:GetChildren()) do
+            table.insert(list, m.Name)
+        end
+        table.sort(list)
+    else
+        list = {"Map Not Found"}
     end
-    table.sort(list)
     return list
 end
 
@@ -70,7 +74,6 @@ end
 --// CODES
 local function getActiveCodes()
     local codes = {}
-    -- Thêm WaitForChild để đợi module tồn tại trước khi require
     local codesPath = game:GetService("ReplicatedStorage"):WaitForChild("API", 5):WaitForChild("codes", 5)
 
     local success, codeModule = pcall(function() 
@@ -80,50 +83,48 @@ local function getActiveCodes()
     if success and codeModule and codeModule.Codes then
         local currentTime = os.time()
         for codeName, data in pairs(codeModule.Codes) do
-            -- Kiểm tra hạn dùng
             if data.Expires and data.Expires > currentTime then
                 table.insert(codes, codeName)
             end
         end
     else
-        -- Dự phòng nếu không tìm thấy module
         codes = {"2026", "portals", "vampire", "happyholidays", "christmaspresent"}
     end
     return codes
 end
 
 -- ================= UI PATH (RESULT UI) =================
-local resultUI = lp.PlayerGui:WaitForChild("battle"):WaitForChild("Result")
-local content = resultUI:WaitForChild("Base"):WaitForChild("Content")
-local resultLabel  = content:WaitForChild("Result")
-local rewardFolder = content:WaitForChild("Rewards")
-local stageLabel   = content:WaitForChild("Stage")
+local resultUI = lp.PlayerGui:WaitForChild("battle", 10) and lp.PlayerGui.battle:WaitForChild("Result", 10)
 
 -- ================= WEBHOOK CORE =================
-local function getMatchRewards()
+local function getMatchRewards(rewardFolder)
     local rewards = {}
-    for _, item in ipairs(rewardFolder:GetChildren()) do
-        local qty = item:FindFirstChild("Quantity")
-        if qty and qty:IsA("TextLabel") and qty.Text ~= "" then
-            table.insert(rewards, "• **" .. item.Name .. "**: " .. qty.Text)
+    if rewardFolder then
+        for _, item in ipairs(rewardFolder:GetChildren()) do
+            local qty = item:FindFirstChild("Quantity")
+            if qty and qty:IsA("TextLabel") and qty.Text ~= "" then
+                table.insert(rewards, "• **" .. item.Name .. "**: " .. qty.Text)
+            end
         end
     end
     return #rewards > 0 and table.concat(rewards, "\n") or "Không có phần thưởng"
-end
-
-local function getTotalBalance()
-    local data = lp:FindFirstChild("Data")
-    if not data then return "N/A" end
-    local coins = data:FindFirstChild("Coins")
-    local gems  = data:FindFirstChild("Gems")
-    return string.format("💰 Coins: %s\n💎 Gems: %s", coins and coins.Value or 0, gems and gems.Value or 0)
 end
 
 local function sendResultWebhook()
     if not WebhookEnabled then return end
     if customWebhook == "" or customWebhook == " " then return end
     if type(s_request) ~= "function" then return end
+    
+    local currentResultUI = lp.PlayerGui:FindFirstChild("battle") and lp.PlayerGui.battle:FindFirstChild("Result")
+    if not currentResultUI then return end
+    
+    local content = currentResultUI:FindFirstChild("Base") and currentResultUI.Base:FindFirstChild("Content")
+    if not content then return end
 
+    local resultLabel  = content:FindFirstChild("Result")
+    local rewardFolder = content:FindFirstChild("Rewards")
+    local stageLabel   = content:FindFirstChild("Stage")
+    
     local data = lp:FindFirstChild("Data")
     local coins = data and data:FindFirstChild("Coins")
     local gems  = data and data:FindFirstChild("Gems")
@@ -150,20 +151,20 @@ local function sendResultWebhook()
         traitText = "🎯 Trait Tokens: 0\n❄️ Ice: 0\n🎁 Christmas Stocking: 0"
     end
 
-    local rewardText = getMatchRewards()
+    local rewardText = getMatchRewards(rewardFolder)
 
     local proxyUrl = customWebhook:gsub("discord.com", "webhook.lewisakura.moe")
+    
+    local isWin = resultLabel and (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory"))
 
     local payload = {
         content = "KazeHub Match Result",
         embeds = {{
-            title = (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory"))
-                and "🏆 VICTORY" or "💀 DEFEAT",
-            color = (resultLabel.Text:lower():find("win") or resultLabel.Text:lower():find("victory"))
-                and 3066993 or 15158332,
+            title = isWin and "🏆 VICTORY" or "💀 DEFEAT",
+            color = isWin and 3066993 or 15158332,
             description =
                 "👤 Player: **"..lp.Name.."**\n"..
-                "🗺 Stage: **"..stageLabel.Text.."**",
+                "🗺 Stage: **"..(stageLabel and stageLabel.Text or "Unknown").."**",
             fields = {
                 {name = "🎁 Rewards", value = rewardText, inline = false},
                 {name = "💰 Balance", value = balanceText, inline = false},
@@ -186,18 +187,20 @@ local function sendResultWebhook()
 end
 
 -- ================= RESULT UI TRIGGER =================
-local sent = false
-resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
-    if resultUI.Visible then
-        if sent then return end
-        sent = true
-        task.wait(2)
-        sendResultWebhook()
-        print("📨 Webhook sent via Result UI")
-    else
-        sent = false
-    end
-end)
+if resultUI then
+    local sent = false
+    resultUI:GetPropertyChangedSignal("Visible"):Connect(function()
+        if resultUI.Visible then
+            if sent then return end
+            sent = true
+            task.wait(2)
+            sendResultWebhook()
+            print("📨 Webhook sent via Result UI")
+        else
+            sent = false
+        end
+    end)
+end
 
 -- ================= MAIN TAB =================
 local Main = Window:CreateTab("🗺 Lobby / Farm", 4483362458)
@@ -220,28 +223,30 @@ local function refreshMapByMode(mode)
     end
 end
 
+-- !!! ĐÃ SỬA LỖI: Đóng ngoặc chính xác cho CreateDropdown
 Main:CreateDropdown({
-Name = "Select Mode 🌟",
-Options = {"Story","Raid"},
-CurrentOption = {"Story"},
-Flag = "Mode",
-Callback = function(opt)
-SelectedMode = opt[1]
-refreshMapByMode(SelectedMode)
-end
+    Name = "Select Mode 🌟",
+    Options = {"Story","Raid"},
+    CurrentOption = {"Story"},
+    Flag = "Mode",
+    Callback = function(opt)
+        SelectedMode = opt[1]
+        refreshMapByMode(SelectedMode)
+    end
 })
 
 MapDropdown = Main:CreateDropdown({
-        Name = "Select Map 🗺️",
-        Options = getSortedMaps(),
-        CurrentOption = {},
-        Flag = "Map",
-        Callback = function(opt)
-            SelectedMap = opt[1]
-        end
-    })
+    Name = "Select Map 🗺️",
+    Options = getSortedMaps(),
+    CurrentOption = {},
+    Flag = "Map",
+    Callback = function(opt)
+        SelectedMap = opt[1]
+    end
+})
 
-        refreshMapByMode(SelectedMode)
+-- Gọi refresh lần đầu
+refreshMapByMode(SelectedMode)
 
 Main:CreateDropdown({
     Name = "Select Act 🔢",
@@ -250,6 +255,7 @@ Main:CreateDropdown({
     Flag = "Act",
     Callback = function(opt) SelectedAct = opt[1] end
 })
+
 Main:CreateDropdown({
     Name = "Difficulty ⚔️",
     Options = {"Normal","Hard","Nightmare"},
@@ -257,43 +263,59 @@ Main:CreateDropdown({
     Flag = "Difficulty",
     Callback = function(opt) SelectedDifficulty = opt[1] end
 })
+
 Main:CreateToggle({
-Name = "Auto Join & Start 🚀",
-CurrentValue = false,
-Flag = "AutoJoinStart",
-Callback = function(v)
-if not v or isPlayerInBattle() then return end
+    Name = "Auto Join & Start 🚀",
+    CurrentValue = false,
+    Flag = "AutoJoinStart",
+    Callback = function(v)
+        if not v then return end
+        
+        task.spawn(function()
+            while v do
+                if not isPlayerInBattle() then
+                    if SelectedMode == "Story" then
+                        RemoteEvent:FireServer(
+                            "battle_start",
+                            "story",
+                            SelectedMap,
+                            tonumber(SelectedAct),
+                            SelectedDifficulty
+                        )
+                        task.wait(5) -- Delay an toàn
 
-if SelectedMode == "Story" then
-    RemoteEvent:FireServer(
-        "battle_start",
-        "story",
-        SelectedMap,
-        tonumber(SelectedAct),
-        SelectedDifficulty
-    )
+                    elseif SelectedMode == "Raid" then
+                        local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            local raidFolder = workspace:WaitForChild("Rooms"):WaitForChild("raid")
+                            for _, room in ipairs(raidFolder:GetChildren()) do
+                                local touch = room:FindFirstChild("Touch", true)
+                                if touch then
+                                    firetouchinterest(hrp, touch, 0)
+                                    task.wait(0.1)
+                                    firetouchinterest(hrp, touch, 1)
 
-elseif SelectedMode == "Raid" then
-    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    local raidFolder = workspace:WaitForChild("Rooms"):WaitForChild("raid")
-    for _, room in ipairs(raidFolder:GetChildren()) do
-        local touch = room:FindFirstChild("Touch", true)
-        if touch then
-            firetouchinterest(hrp, touch, 0)
-            task.wait(0.1)
-            firetouchinterest(hrp, touch, 1)
-
-            task.wait(0.4)
-            RemoteEvent:FireServer("room_select", SelectedMap, 1)
-            task.wait(0.3)
-            RemoteEvent:FireServer("room_start")
-            break
-        end
+                                    task.wait(0.4)
+                                    -- !!! UPDATE: Đã đổi số 1 thành tonumber(SelectedAct)
+                                    -- Bây giờ Raid sẽ chọn Act theo Dropdown bạn chọn
+                                    RemoteEvent:FireServer("room_select", SelectedMap, tonumber(SelectedAct))
+                                    
+                                    task.wait(0.3)
+                                    RemoteEvent:FireServer("room_start")
+                                    task.wait(5)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+                task.wait(2)
+                -- Kiểm tra lại toggle để dừng vòng lặp
+                if not Rayfield.Flags["AutoJoinStart"] then break end
+                if not Rayfield.Flags["AutoJoinStart"].CurrentValue then break end
+            end
+        end)
     end
-end
-end
 })
 
 -- ================= CHALLENGE TAB =================
@@ -335,7 +357,7 @@ end
 
 local function joinChallenge()
     local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    local touch = workspace.Rooms.challenges.Model:FindFirstChild("Touch")
+    local touch = workspace.Rooms:FindFirstChild("challenges") and workspace.Rooms.challenges.Model:FindFirstChild("Touch")
     local data = getLiveChallengeData()
 
     if not hrp or not touch or data.Map == "N/A" then return end
@@ -390,6 +412,7 @@ ChallengeTab:CreateToggle({
                         joinChallenge()
                     end
                     task.wait(15)
+                    if not AutoChallengeEnabled then break end
                 end
             end)
         end
@@ -402,6 +425,7 @@ GameplayTab:CreateLabel("🎯 Summon / Spinner Settings")
 local SelectedGameplay = "x10 Summon Banner"
 local AutoSpinEnabled = false
 local SpinDelay = 1.5
+
 GameplayTab:CreateDropdown({
     Name = "Select Action 🎲",
     Options = {"x10 Summon Banner","Christmas Standard Spin","Christmas Advanced Spin"},
@@ -410,6 +434,7 @@ GameplayTab:CreateDropdown({
     Flag = "GameplayAction",
     Callback = function(opt) SelectedGameplay = opt[1] end
 })
+
 GameplayTab:CreateInput({
     Name = "Spin Delay ⏱️ (seconds)",
     PlaceholderText = "VD: 1.5 (0.3-60)",
@@ -435,20 +460,21 @@ local function doGameplayAction()
 end
 
 GameplayTab:CreateToggle({
-Name = "Auto Spin / Summon 🔄",
-CurrentValue = false,
-Flag = "AutoGameplay",
-Callback = function(v)
-    AutoSpinEnabled = v
-    if v then
-        task.spawn(function()
-            while AutoSpinEnabled do
-                doGameplayAction()
-                task.wait(SpinDelay)
-            end
-        end)
+    Name = "Auto Spin / Summon 🔄",
+    CurrentValue = false,
+    Flag = "AutoGameplay",
+    Callback = function(v)
+        AutoSpinEnabled = v
+        if v then
+            task.spawn(function()
+                while AutoSpinEnabled do
+                    doGameplayAction()
+                    task.wait(SpinDelay)
+                    if not AutoSpinEnabled then break end
+                end
+            end)
+        end
     end
-end
 })
 
 
@@ -616,8 +642,14 @@ Misc:CreateToggle({
 
 Misc:CreateLabel("🛡️ Utility")
 Misc:CreateToggle({Name="Anti-AFK 💤", CurrentValue=false, Flag="AntiAFK", Callback=function(v)
-    if v then _G.AFK=lp.Idled:Connect(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new(0,0)) end)
-    else if _G.AFK then _G.AFK:Disconnect() end end
+    if v then 
+        _G.AFK = lp.Idled:Connect(function() 
+            VirtualUser:CaptureController() 
+            VirtualUser:ClickButton2(Vector2.new(0,0)) 
+        end)
+    else 
+        if _G.AFK then _G.AFK:Disconnect() end 
+    end
 end})
 Misc:CreateButton({Name="💾 Save Config Now", Callback=function() Rayfield:SaveConfiguration() Rayfield:Notify({Title="Config",Content="Saved successfully",Duration=2}) end})
 Misc:CreateButton({Name="🔄 Rejoin", Callback=function() TeleportService:Teleport(game.PlaceId,lp) end})
