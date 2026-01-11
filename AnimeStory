@@ -71,6 +71,16 @@ local function isPlayerInBattle()
     return gui and gui.Enabled
 end
 
+local function tableHas(tbl, value)
+    for _, v in ipairs(tbl) do
+        if v == value then
+            return true
+        end
+    end
+    return false
+end
+
+
 --// CODES
 local function getActiveCodes()
     local codes = {}
@@ -209,18 +219,24 @@ Main:CreateLabel("🌟 Mode / Map Selection")
 local MapDropdown
 
 local function refreshMapByMode(mode)
-    if not MapDropdown then return end
+if not MapDropdown then return end
 
-    if mode == "Raid" then
-        MapDropdown:Refresh(RaidMaps, true)
-        SelectedMap = RaidMaps[1]
-        MapDropdown:Set({RaidMaps[1]})
-    else
-        local maps = getSortedMaps()
-        MapDropdown:Refresh(maps, true)
-        SelectedMap = maps[1]
-        MapDropdown:Set({maps[1]})
-    end
+local maps
+if mode == "Raid" then
+    maps = RaidMaps
+else
+    maps = getSortedMaps()
+end
+
+MapDropdown:Refresh(maps, true)
+
+-- 🔐 GIỮ MAP CŨ NẾU CÒN TỒN TẠI
+if SelectedMap and tableHas(maps, SelectedMap) then
+    MapDropdown:Set({SelectedMap})
+else
+    SelectedMap = maps[1]
+    MapDropdown:Set({maps[1]})
+end
 end
 
 -- !!! ĐÃ SỬA LỖI: Đóng ngoặc chính xác cho CreateDropdown
@@ -679,4 +695,9 @@ Misc:CreateButton({Name="💾 Save Config Now", Callback=function() Rayfield:Sav
 Misc:CreateButton({Name="🔄 Rejoin", Callback=function() TeleportService:Teleport(game.PlaceId,lp) end})
 
 Rayfield:LoadConfiguration()
+
+-- đảm bảo refresh lại dropdown theo config đã load
+task.wait(0.2)
+refreshMapByMode(SelectedMode)
+
 print("✅ KAZEHUB BEAUTY UI LOADED")
