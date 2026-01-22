@@ -44,6 +44,7 @@ local SelectedDifficulty = "Normal"
 local RaidMaps = {"Vastora Realm","Ember Village","Power Arena"}
 local WebhookEnabled = true
 local customWebhook = ""
+local AutoJoinUsed = false
 
 -- ================= LOAD WEBHOOK =================
 pcall(function()
@@ -285,16 +286,22 @@ Name = "Auto Join & Start 🚀",
 CurrentValue = false,
 Flag = "AutoJoinStart",
 Callback = function(v)
-    if not v then return end
+    if not v then
+        AutoJoinUsed = false -- reset khi người dùng tự tắt
+        return
+    end
+
+    -- Nếu đã join rồi thì không làm gì nữa
+    if AutoJoinUsed then return end
 
     task.spawn(function()
-        -- Nếu đang trong battle thì hủy
-        if isPlayerInBattle() then
-            Rayfield.Flags["AutoJoinStart"]:Set(false)
-            return
-        end
 
-        -- ================= STORY (JOIN 1 LẦN) =================
+        -- Nếu đang trong battle thì không join
+        if isPlayerInBattle() then return end
+
+        AutoJoinUsed = true -- đánh dấu đã dùng Auto Join
+
+        -- ================= STORY =================
         if SelectedMode == "Story" then
             RemoteEvent:FireServer(
                 "battle_start",
@@ -304,24 +311,18 @@ Callback = function(v)
                 SelectedDifficulty
             )
 
-            task.wait(1)
-            Rayfield.Flags["AutoJoinStart"]:Set(false)
-
             Rayfield:Notify({
-                Title = "Story Joined",
-                Content = "Đã vào Story 1 lần – Auto Join đã tắt",
+                Title = "Auto Join",
+                Content = "Đã vào Story 1 lần (Auto Join vẫn bật)",
                 Duration = 2
             })
             return
         end
 
-        -- ================= RAID (JOIN 1 LẦN) =================
+        -- ================= RAID =================
         if SelectedMode == "Raid" then
             local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-            if not hrp then
-                Rayfield.Flags["AutoJoinStart"]:Set(false)
-                return
-            end
+            if not hrp then return end
 
             local raidFolder = workspace:WaitForChild("Rooms"):WaitForChild("raid")
             for _, room in ipairs(raidFolder:GetChildren()) do
@@ -341,12 +342,9 @@ Callback = function(v)
                     task.wait(0.3)
                     RemoteEvent:FireServer("room_start")
 
-                    task.wait(1)
-                    Rayfield.Flags["AutoJoinStart"]:Set(false)
-
                     Rayfield:Notify({
-                        Title = "Raid Joined",
-                        Content = "Đã vào Raid 1 lần – Auto Join đã tắt",
+                        Title = "Auto Join",
+                        Content = "Đã vào Raid 1 lần (Auto Join vẫn bật)",
                         Duration = 2
                     })
                     break
@@ -354,9 +352,8 @@ Callback = function(v)
             end
         end
     end)
-end
-})
-
+        end
+    })
 
 -- ================= CHALLENGE TAB =================
 local ChallengeTab = Window:CreateTab("🧠 Challenges", 4483362458)
