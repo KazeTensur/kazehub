@@ -136,10 +136,23 @@ local function sendResultWebhook()
     local rewardFolder = content:FindFirstChild("Rewards")
     local stageLabel   = content:FindFirstChild("Stage")
 
-    local data = lp:FindFirstChild("Data")
-    local coins = data and data:FindFirstChild("Coins")
-    local gems  = data and data:FindFirstChild("Gems")
-    local balanceText = string.format("💰 Coins: %s\n💎 Gems: %s", coins and coins.Value or 0, gems and gems.Value or 0)
+local data = lp:FindFirstChild("Data")
+local coins = data and data:FindFirstChild("Coins")
+local gems  = data and data:FindFirstChild("Gems")
+
+local function formatNumber(n)
+    n = math.floor(tonumber(n) or 0)
+    return tostring(n):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+end
+
+local coinValue = coins and formatNumber(coins.Value) or "0"
+local gemValue = gems and formatNumber(gems.Value) or "0"
+
+local balanceText = string.format(
+    "💰 Coins: %s\n💎 Gems: %s",
+    coinValue,
+    gemValue
+)
 
     local itemsFolder = lp.PlayerGui:FindFirstChild("main") 
                         and lp.PlayerGui.main:FindFirstChild("Inventory") 
