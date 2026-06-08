@@ -438,30 +438,21 @@ end
 
 local function returntolobby()
 
-    local ui = lp.PlayerGui:FindFirstChild("battle")
-    if not ui then return end
+local players = game:GetService("Players")
+local target = players:FindFirstChild("askmine") or lp
 
-    local result = ui:FindFirstChild("Result")
-
-    -- đợi UI thật sự hiện
-    local t = tick() + 5
-    while (not result or not result.Visible) and tick() < t do
-        task.wait(0.2)
-    end
-
+-- gửi liên tục để chắc chắn server nhận (anti-drop packet)
+for i = 1, 3 do
     pcall(function()
-
-        local players = game:GetService("Players")
-        local target = players:FindFirstChild("askmine")
-
         RemoteEvent:FireServer(
             "battle_request_leave",
-            target or lp
+            target
         )
-
     end)
+    task.wait(0.5)
+end
 
-    task.wait(2)
+task.wait(2)
 end
 
 local function rejoinSelectedMode()
@@ -639,8 +630,9 @@ ChallengeTab:CreateToggle({
                             ------------------------------------------------
 
                             repeat
-                                task.wait(5)
+                                task.wait(1)
                             until not isPlayerInBattle()
+                                task.wait(0.5)
 
                                 ------------------------------------------------
                                 -- Return về Lobby
