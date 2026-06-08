@@ -436,6 +436,34 @@ task.wait(3)
 
 end
 
+local function returntolobby()
+
+    local ui = lp.PlayerGui:FindFirstChild("battle")
+    if not ui then return end
+
+    local result = ui:FindFirstChild("Result")
+
+    -- đợi UI thật sự hiện
+    local t = tick() + 5
+    while (not result or not result.Visible) and tick() < t do
+        task.wait(0.2)
+    end
+
+    pcall(function()
+
+        local players = game:GetService("Players")
+        local target = players:FindFirstChild("askmine")
+
+        RemoteEvent:FireServer(
+            "battle_request_leave",
+            target or lp
+        )
+
+    end)
+
+    task.wait(2)
+end
+
 local function rejoinSelectedMode()
 
     task.wait(2)
@@ -618,7 +646,7 @@ ChallengeTab:CreateToggle({
                                 -- Return về Lobby
                                 ------------------------------------------------
 
-                                leaveBattle()
+                                returntolobby()
 
                                 local timeout = tick() + 15
 
