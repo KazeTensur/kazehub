@@ -1,4 +1,4 @@
-[-- ================= KAZEHUB CLEAN FINAL + BEAUTY UI =================
+-- ================= KAZEHUB CLEAN FINAL + BEAUTY UI =================
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
@@ -47,8 +47,6 @@ local customWebhook = ""
 local AutoJoinUsed = false
 local AntiAFKEnabled = false
 local AntiAFKThread = nil
-local AutoChallengeScheduler = false
-local LastChallengeSlot = -1
 
 -- ================= LOAD WEBHOOK =================
 pcall(function()
@@ -83,102 +81,6 @@ local function tableHas(tbl, value)
         end
     end
     return false
-end
-
-local function leaveBattle()
-
-    pcall(function()
-
-        RemoteEvent:FireServer(
-            "battle_request_leave",
-            lp
-        )
-
-    end)
-
-    task.wait(0.2)
-
-end
-
-local function rejoinSelectedFarm()
-
-    if SelectedMode == "Story" then
-
-        RemoteEvent:FireServer(
-            "battle_start",
-            "story",
-            SelectedMap,
-            tonumber(SelectedAct),
-            SelectedDifficulty
-        )
-
-        return
-    end
-
-    if SelectedMode == "Raid" then
-
-        local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-
-        local raidFolder = workspace.Rooms:FindFirstChild("raid")
-        if not raidFolder then return end
-
-        for _, room in ipairs(raidFolder:GetChildren()) do
-
-            local touch = room:FindFirstChild("Touch", true)
-
-            if touch then
-
-                firetouchinterest(hrp, touch, 0)
-                task.wait(0.1)
-                firetouchinterest(hrp, touch, 1)
-
-                task.wait(0.5)
-
-                RemoteEvent:FireServer(
-                    "room_select",
-                    SelectedMap,
-                    tonumber(SelectedAct)
-                )
-
-                task.wait(0.3)
-
-                RemoteEvent:FireServer("room_start")
-
-                break
-            end
-        end
-    end
-end
-
-local function getChallengeSlot()
-
-    local now = os.date("*t")
-
-    if now.min < 30 then
-        return now.hour * 2
-    else
-        return now.hour * 2 + 1
-    end
-
-end
-
-local function waitBattleEnd(timeout)
-
-    local start = tick()
-
-    while isPlayerInBattle() do
-
-        if tick() - start >= timeout then
-            return false
-        end
-
-        task.wait(5)
-
-    end
-
-    return true
-
 end
 
 --// CODES
@@ -488,6 +390,8 @@ ChallengeTab:CreateLabel("⚠️ Requires saved team in SLOT 1")
 local AutoChallengeEnabled = false
 local AutoEquipTeam = false
 local IgnoredDebuffs = {}
+local ChallengeRunning = false
+local LastChallengeCycle = -1
 
 ChallengeTab:CreateToggle({
     Name = "Auto Equip Team (Slot 1) 🛡️",
@@ -516,6 +420,92 @@ local function getLiveChallengeData()
         }
     end)
     return ok and data or {Map = "N/A", Debuff = "N/A"}
+end
+
+local function leaveBattle()
+    pcall(function()
+        RemoteEvent:FireServer(
+            "battle_request_leave",
+            lp
+        )
+    end)
+
+    task.wait(3)
+end
+
+local function rejoinSelectedMode()
+
+    task.wait(2)
+
+    if SelectedMode == "Story" then
+
+        RemoteEvent:FireServer(
+            "battle_start",
+            "story",
+            SelectedMap,
+            tonumber(SelectedAct),
+            SelectedDifficulty
+        )
+
+        return
+    end
+
+    if SelectedMode == "Raid" then
+
+        local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        local raidFolder = workspace:WaitForChild("Rooms"):WaitForChild("raid")
+
+        for _, room in ipairs(raidFolder:GetChildren()) do
+
+            local touch = room:FindFirstChild("Touch", true)
+
+            if touch then
+
+                firetouchinterest(hrp, touch, 0)
+                task.wait(0.1)
+                firetouchinterest(hrp, touch, 1)
+
+                task.wait(0.4)
+
+                RemoteEvent:FireServer(
+                    "room_select",
+                    SelectedMap,
+                    tonumber(SelectedAct)
+                )
+
+                task.wait(0.3)
+
+                RemoteEvent:FireServer("room_start")
+
+                break
+            end
+        end
+    end
+end
+
+local function isChallengeResetTime()
+
+    local t = os.date("*t")
+
+    local cycle =
+        t.year..
+        t.yday..
+        t.hour..
+        math.floor(t.min / 30)
+
+    if (t.min == 0 or t.min == 30) then
+
+        if cycle ~= LastChallengeCycle then
+
+            LastChallengeCycle = cycle
+
+            return true
+        end
+    end
+
+    return false
 end
 
 local function joinChallenge()
@@ -561,74 +551,88 @@ local function joinChallenge()
 end
 
 ChallengeTab:CreateToggle({
-Name = "Smart Auto Challenge 🤖",
-CurrentValue = false,
-Flag = "AutoChallenge",
+    Name = "Smart Auto Challenge 🤖",
+    CurrentValue = false,
+    Flag = "AutoChallenge",
+    Callback = function(v)
+        AutoChallengeEnabled = v
+        if v then
+            task.spawn(function()
+                    while AutoChallengeEnabled do
 
-Callback = function(v)
+                        if isChallengeResetTime()
+                        and not ChallengeRunning then
 
-    AutoChallengeEnabled = v
-    AutoChallengeScheduler = v
+                            ChallengeRunning = true
 
-    if v then
+                            StatusLabel:Set("⚔️ Challenge Reset!")
 
-        task.spawn(function()
+                            ------------------------------------------------
+                            -- Nếu đang farm Story/Raid
+                            ------------------------------------------------
 
-            LastChallengeSlot = getChallengeSlot()
-
-            while AutoChallengeScheduler do
-
-                local currentSlot = getChallengeSlot()
-
-                if currentSlot ~= LastChallengeSlot then
-
-                    LastChallengeSlot = currentSlot
-
-                    StatusLabel:Set("🔄 Challenge Reset")
-
-                                local finished = waitBattleEnd(7200)
-
-                                if not finished then
-                                    StatusLabel:Set("❌ Battle Timeout")
-                                    return
-                                end
+                            if isPlayerInBattle() then
 
                                 leaveBattle()
-                                task.wait(2)
 
-                                joinChallenge()
+                                repeat
+                                    task.wait(1)
+                                until not isPlayerInBattle()
+                            end
+
+                            ------------------------------------------------
+                            -- Join Challenge
+                            ------------------------------------------------
+
+                            joinChallenge()
+
+                            task.wait(3)
+
+                            if not isPlayerInBattle() then
+
+                                StatusLabel:Set("⏭️ Challenge Skipped / Failed")
+
+                                rejoinSelectedMode()
+
+                                ChallengeRunning = false
+
                                 task.wait(5)
 
-                                if not isPlayerInBattle() then
-                                    StatusLabel:Set("❌ Challenge Join Failed")
-                                    return
-                                end
+                                continue
+                            end
 
-                    while isPlayerInBattle() do
-                        task.wait(10)
+                            ------------------------------------------------
+                            -- Đợi Challenge kết thúc
+                            ------------------------------------------------
+
+                            repeat
+                                task.wait(5)
+                            until not isPlayerInBattle()
+
+                            ------------------------------------------------
+                            -- Return về Lobby
+                            ------------------------------------------------
+
+                            leaveBattle()
+
+                            task.wait(5)
+
+                            ------------------------------------------------
+                            -- Join lại Story/Raid
+                            ------------------------------------------------
+
+                            rejoinSelectedMode()
+
+                            StatusLabel:Set("🔄 Back To Farm")
+
+                            ChallengeRunning = false
+                        end
+
+                        task.wait(5)
                     end
-
-                    task.wait(3)
-
-                    leaveBattle()
-
-                    task.wait(3)
-
-                    rejoinSelectedFarm()
-
-                    StatusLabel:Set("✅ Returned To Farm")
-
-                end
-
-                task.wait(15)
-
-            end
-
-        end)
-
+            end)
+        end
     end
-
-end
 })
 
 -- ================= GAMEPLAY TAB =================
@@ -688,7 +692,6 @@ GameplayTab:CreateToggle({
         end
     end
 })
-
 
 -- ================= AUTO REDEEM CODE (SMART) =================
 GameplayTab:CreateLabel("🎁 Smart Giftcodes")
@@ -815,7 +818,6 @@ local function disableFPSBoost2()
         end
     end
 end
-
 
 -- ================= MISC TAB =================
 
