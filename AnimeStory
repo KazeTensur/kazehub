@@ -423,14 +423,17 @@ local function getLiveChallengeData()
 end
 
 local function leaveBattle()
-    pcall(function()
-        RemoteEvent:FireServer(
-            "battle_request_leave",
-            lp
-        )
-    end)
 
-    task.wait(3)
+pcall(function()
+
+    RemoteEvent:FireServer(
+        "battle_end"
+    )
+
+end)
+
+task.wait(3)
+
 end
 
 local function rejoinSelectedMode()
@@ -575,9 +578,11 @@ ChallengeTab:CreateToggle({
 
                                 leaveBattle()
 
+                                local timeout = tick() + 15
+
                                 repeat
                                     task.wait(1)
-                                until not isPlayerInBattle()
+                                until not isPlayerInBattle() or tick() > timeout
                             end
 
                             ------------------------------------------------
@@ -609,13 +614,19 @@ ChallengeTab:CreateToggle({
                                 task.wait(5)
                             until not isPlayerInBattle()
 
-                            ------------------------------------------------
-                            -- Return về Lobby
-                            ------------------------------------------------
+                                ------------------------------------------------
+                                -- Return về Lobby
+                                ------------------------------------------------
 
-                            leaveBattle()
+                                leaveBattle()
 
-                            task.wait(5)
+                                local timeout = tick() + 15
+
+                                repeat
+                                    task.wait(1)
+                                until not isPlayerInBattle() or tick() > timeout
+
+                                task.wait(2)
 
                             ------------------------------------------------
                             -- Join lại Story/Raid
