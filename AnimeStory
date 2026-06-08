@@ -45,6 +45,8 @@ local RaidMaps = {"Vastora Realm","Ember Village","Power Arena"}
 local WebhookEnabled = true
 local customWebhook = ""
 local AutoJoinUsed = false
+local AntiAFKEnabled = false
+local AntiAFKThread = nil
 
 -- ================= LOAD WEBHOOK =================
 pcall(function()
@@ -670,6 +672,42 @@ end
 
 
 -- ================= MISC TAB =================
+
+local function StartAntiAFK()
+
+    if AntiAFKThread then
+        task.cancel(AntiAFKThread)
+    end
+
+    AntiAFKThread = task.spawn(function()
+
+        while AntiAFKEnabled do
+
+            pcall(function()
+
+                VirtualUser:CaptureController()
+
+                VirtualUser:Button2Down(
+                    Vector2.new(0,0),
+                    workspace.CurrentCamera.CFrame
+                )
+
+                task.wait(0.1)
+
+                VirtualUser:Button2Up(
+                    Vector2.new(0,0),
+                    workspace.CurrentCamera.CFrame
+                )
+
+            end)
+
+            task.wait(30)
+
+        end
+
+    end)
+end
+
 local Misc = Window:CreateTab("⚙️ Misc", 4483362458)
 Misc:CreateLabel("⚡ Performance Settings")
 Misc:CreateToggle({Name="FPS Boost 🚀", CurrentValue=false, Flag="FPSBoost", Callback=function(v)
@@ -705,16 +743,68 @@ Misc:CreateToggle({
 })
 
 Misc:CreateLabel("🛡️ Utility")
-Misc:CreateToggle({Name="Anti-AFK 💤", CurrentValue=false, Flag="AntiAFK", Callback=function(v)
-    if v then 
-        _G.AFK = lp.Idled:Connect(function() 
-            VirtualUser:CaptureController() 
-            VirtualUser:ClickButton2(Vector2.new(0,0)) 
+Misc:CreateToggle({
+Name = "Anti AFK 💤",
+CurrentValue = false,
+Flag = "AntiAFK",
+
+Callback = function(v)
+
+    AntiAFKEnabled = v
+
+    if v then
+
+        if _G.IdledConnection then
+            _G.IdledConnection:Disconnect()
+        end
+
+        _G.IdledConnection = lp.Idled:Connect(function()
+
+            VirtualUser:CaptureController()
+
+            VirtualUser:Button2Down(
+                Vector2.new(0,0),
+                workspace.CurrentCamera.CFrame
+            )
+
+            task.wait(0.1)
+
+            VirtualUser:Button2Up(
+                Vector2.new(0,0),
+                workspace.CurrentCamera.CFrame
+            )
+
         end)
-    else 
-        if _G.AFK then _G.AFK:Disconnect() end 
+
+        StartAntiAFK()
+
+        Rayfield:Notify({
+            Title = "Anti AFK",
+            Content = "Đã bật Anti AFK",
+            Duration = 2
+        })
+
+    else
+
+        if _G.IdledConnection then
+            _G.IdledConnection:Disconnect()
+            _G.IdledConnection = nil
+        end
+
+        if AntiAFKThread then
+            task.cancel(AntiAFKThread)
+            AntiAFKThread = nil
+        end
+
+        Rayfield:Notify({
+            Title = "Anti AFK",
+            Content = "Đã tắt Anti AFK",
+            Duration = 2
+        })
+
     end
-end})
+end
+})
 Misc:CreateButton({Name="💾 Save Config Now", Callback=function() Rayfield:SaveConfiguration() Rayfield:Notify({Title="Config",Content="Saved successfully",Duration=2}) end})
 Misc:CreateButton({Name="🔄 Rejoin", Callback=function() TeleportService:Teleport(game.PlaceId,lp) end})
 
