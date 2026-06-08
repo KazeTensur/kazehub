@@ -486,14 +486,14 @@ ChallengeTab:CreateToggle({
 -- ================= GAMEPLAY TAB =================
 local GameplayTab = Window:CreateTab("🎰 Gameplay", 4483362458)
 GameplayTab:CreateLabel("🎯 Summon / Spinner Settings")
-local SelectedGameplay = "x10 Summon Banner"
+local SelectedGameplay = "x50 Summon Banner"
 local AutoSpinEnabled = false
 local SpinDelay = 1.5
 
 GameplayTab:CreateDropdown({
     Name = "Select Action 🎲",
-    Options = {"x10 Summon Banner","Christmas Standard Spin","Christmas Advanced Spin"},
-    CurrentOption = {"x10 Summon Banner"},
+    Options = {"x50 Summon Banner","Christmas Standard Spin","Christmas Advanced Spin"},
+    CurrentOption = {"x50 Summon Banner"},
     MultipleOptions = false,
     Flag = "GameplayAction",
     Callback = function(opt) SelectedGameplay = opt[1] end
@@ -512,8 +512,8 @@ GameplayTab:CreateInput({
 })
 
 local function doGameplayAction()
-    if SelectedGameplay == "x10 Summon Banner" then
-        RemoteEvent:FireServer("summon_roll", "Standard", 10)
+    if SelectedGameplay == "x50 Summon Banner" then
+        RemoteEvent:FireServer("summon_roll", "Standard", 50)
 
     elseif SelectedGameplay == "Christmas Standard Spin" then
         RemoteEvent:FireServer("spinner_standard")
